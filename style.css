@@ -829,6 +829,29 @@ button.calculate-btn:hover {
   --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* Settings Button */
+.settings-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.settings-btn:hover {
+  background-color: rgba(128, 128, 128, 0.1);
+}
+
+.settings-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
 /* Theme Toggle Button */
 .theme-toggle {
   background: transparent;
