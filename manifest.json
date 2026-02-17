@@ -1,0 +1,16 @@
+{
+    "name": "Universal Calculator",
+    "short_name": "UniCalc",
+    "description": "A comprehensive calculator with math, physics, chemistry, statistics, and unit converters — works offline.",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#111111",
+    "theme_color": "#111111",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23111'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>🧮</text></svg>",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}
