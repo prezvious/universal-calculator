@@ -13,6 +13,7 @@
   --radius: 8px;
   --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   --btn-text-color: #ffffff;
+  --bg-topbar: rgba(255, 255, 255, 0.9);
 }
 
 * {
@@ -141,7 +142,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: var(--bg-topbar);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   position: sticky;
@@ -829,6 +830,7 @@ button.calculate-btn:hover {
   --accent-hover: #cccccc;
   --btn-text-color: #000000;
   --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --bg-topbar: rgba(18, 18, 18, 0.9);
 }
 
 /* Settings Button */
@@ -1011,6 +1013,7 @@ button.calculate-btn:hover {
   --text-main: #ffffff;
   --text-secondary: #888888;
   --shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+  --bg-topbar: rgba(0, 0, 0, 0.95);
 }
 
 /* Medium (Standard Dark) - explicitly matching the default dark theme */
@@ -1030,6 +1033,7 @@ button.calculate-btn:hover {
   --border-color: #484848;
   --text-main: #d0d0d0;
   --text-secondary: #999999;
+  --bg-topbar: rgba(37, 37, 37, 0.9);
 }
 
 /* ===== Password Generator ===== */
