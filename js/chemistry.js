@@ -367,26 +367,26 @@ export const chemistryCalculators = {
             </ul>
             <p>If these volumes are expressed in the same units, you can cancel each side down using their greatest common factor, and you will end up with the simplest integer expression of the dilution factor. Some of you, however, may wish to express this ratio in the form 1:X, where X is how many parts of the dilutant/total solution there are for one part of the stock solution. This may leave you with some funny (not haha funny, but oh no funny) ratios, but their formulas are:</p>
             <ul>
-                <li>\[S:D = 1 : (V_{stock} / V_{dilutant})\]</li>
-                <li>\[S:T = 1 : (V_{stock} / V_{total})\]</li>
+                <li>\[S:D = 1 : (V_{dilutant} / V_{stock})\]</li>
+                <li>\[S:T = 1 : (V_{total} / V_{stock})\]</li>
             </ul>
-            <p>Due to the limitations in current technology, this is also how our calculator expresses your results. We hope you can forgive us for making you do extra work. You may also see the dilution factor expressed as an exponent, such as 3⁻¹, 5⁻³, or 10⁻⁴. Now, do not be frightened by this new form! The exponent merely represents the ratio of the parts of the dilutant/total to the parts of the stock. Use the order of the ratio above:</p>
+            <p>Due to the limitations in current technology, this is also how our calculator expresses your results. We hope you can forgive us for making you do extra work. You may also see the dilution factor expressed as an exponent, such as \\( 3^{-1} \\), \\( 5^{-3} \\), or \\( 10^{-4} \\). Now, do not be frightened by this new form! The exponent merely represents the ratio of the parts of the dilutant/total to the parts of the stock. Use the order of the ratio above:</p>
             <ul>
-                <li>S:D = exponent : 1</li>
-                <li>S:T = exponent : 1</li>
+                <li>\\( S{:}D = \\text{exponent} : 1 \\)</li>
+                <li>\\( S{:}T = \\text{exponent} : 1 \\)</li>
             </ul>
             <p>Now, you may or may not know that a number with a negative exponent is the same as putting that number as the denominator when the numerator is 1 and removing the negative sign. Our exponent calculator can help you understand this further, but for now, let's go through the examples we set out above:</p>
             <ul>
-                <li>3⁻¹ → 1/3 : 1 → 1/3 : 1 → 1 : 3</li>
-                <li>5⁻³ → 1/5³ : 1 → 1/125 : 1 → 1 : 125</li>
-                <li>10⁻⁴ → 1/10⁴ : 1 → 1/10000 : 1 → 1 : 10000</li>
+                <li>\\( 3^{-1} \\to \\frac{1}{3} : 1 \\to 1 : 3 \\)</li>
+                <li>\\( 5^{-3} \\to \\frac{1}{5^3} : 1 \\to \\frac{1}{125} : 1 \\to 1 : 125 \\)</li>
+                <li>\\( 10^{-4} \\to \\frac{1}{10^4} : 1 \\to \\frac{1}{10000} : 1 \\to 1 : 10000 \\)</li>
             </ul>
 
             <h3>How to calculate dilution factor</h3>
             <p>If you're still asking yourself, "how to find the dilution factor?", then we hope this section will answer all of your questions. So, just follow the steps below if you want to calculate the dilution factor by hand:</p>
             <ol>
                 <li>Find any two of the following three values: volume of the stock solution (stock), volume of the dilutant (dilutant), and total volume of the solution (total). This can either be done theoretically (before your experiment) or experimentally (after your experiment).</li>
-                <li>Use the two volumes to find the third. Use this equation: stock + dilutant = total. If you know which notation you would prefer to use (S:D or S:T), then you may not need this step, but we shall include it for completeness.</li>
+                <li>Use the two volumes to find the third. Use this equation: \\( V_{\\text{stock}} + V_{\\text{dilutant}} = V_{\\text{total}} \\). If you know which notation you would prefer to use (S:D or S:T), then you may not need this step, but we shall include it for completeness.</li>
                 <li>Be sure that all the volumes in the ratios use the same unit.</li>
                 <li>Decide which notation you require:</li>
                 <ul>
@@ -548,10 +548,15 @@ export const chemistryCalculators = {
                 mlFinal = mlInitial + mlDilutant;
                 inputs.final.val.value = convertFromMl(mlFinal, inputs.final.unit.value).toString();
 
-                st = mlFinal / mlInitial;
-                sd = mlDilutant / mlInitial;
-                inputs.st.value = st.toString();
-                inputs.sd.value = sd.toString();
+                if (mlInitial > 0) {
+                    st = mlFinal / mlInitial;
+                    sd = mlDilutant / mlInitial;
+                    inputs.st.value = st.toString();
+                    inputs.sd.value = sd.toString();
+                } else {
+                    inputs.st.value = "";
+                    inputs.sd.value = "";
+                }
             }
             // Scenario 2: Initial & Final known
             else if (mlInitial !== null && mlFinal !== null && ['initial', 'final', 'unit'].includes(source)) {
@@ -584,21 +589,21 @@ export const chemistryCalculators = {
                 }
             }
             // Scenario 4: Initial & Ratio known
-            else if (mlInitial !== null && st !== null && ['initial', 'st', 'sd', 'unit'].includes(source)) {
+            else if (mlInitial !== null && st !== null && sd !== null && ['initial', 'st', 'sd', 'unit'].includes(source)) {
                 mlFinal = mlInitial * st;
                 mlDilutant = mlInitial * sd;
                 inputs.final.val.value = convertFromMl(mlFinal, inputs.final.unit.value).toString();
                 inputs.dilutant.val.value = convertFromMl(mlDilutant, inputs.dilutant.unit.value).toString();
             }
             // Scenario 5: Dilutant & Ratio known
-            else if (mlDilutant !== null && sd !== null && ['dilutant', 'st', 'sd', 'unit'].includes(source)) {
+            else if (mlDilutant !== null && sd !== null && sd > 0 && st !== null && ['dilutant', 'st', 'sd', 'unit'].includes(source)) {
                 mlInitial = mlDilutant / sd;
                 mlFinal = mlInitial * st;
                 inputs.initial.val.value = convertFromMl(mlInitial, inputs.initial.unit.value).toString();
                 inputs.final.val.value = convertFromMl(mlFinal, inputs.final.unit.value).toString();
             }
             // Scenario 6: Final & Ratio known
-            else if (mlFinal !== null && st !== null && ['final', 'st', 'sd', 'unit'].includes(source)) {
+            else if (mlFinal !== null && st !== null && st > 0 && sd !== null && ['final', 'st', 'sd', 'unit'].includes(source)) {
                 mlInitial = mlFinal / st;
                 mlDilutant = mlInitial * sd;
                 inputs.initial.val.value = convertFromMl(mlInitial, inputs.initial.unit.value).toString();
@@ -654,6 +659,617 @@ export const chemistryCalculators = {
     }
 },
             {
+                id: "concentration-calculator",
+                name: "Concentration Calculator",
+                description: "Calculate concentration as w/v%, w/w%, molarity, dilution, or from density.",
+                educationalHTML: `
+        <div class="educational-section">
+            <h3>Solution Chemistry: Concentration Concepts</h3>
+
+            <h4>1. Mass volume percent (w/v%)</h4>
+            <p>Mass volume percent tells you how many grams of solute are present in every 100 mL of solution.</p>
+            \\[ \\text{w/v\\%} = \\frac{\\text{mass of solute (g)}}{\\text{volume of solution (mL)}} \\times 100 \\]
+            <p>The denominator is the total volume of the final solution, not just the solvent volume.</p>
+
+            <h4>2. Mass percent (w/w%)</h4>
+            <p>Mass percent tells you how many grams of solute are present in every 100 g of total solution.</p>
+            \\[ \\text{w/w\\%} = \\frac{\\text{mass of solute}}{\\text{mass of solution}} \\times 100 \\]
+            \\[ \\text{mass of solution} = \\text{mass of solute} + \\text{mass of solvent} \\]
+
+            <h4>3. Molarity concentration</h4>
+            <p>Molarity is moles of solute per liter of solution.</p>
+            \\[ M = \\frac{n}{V} \\]
+            <p>Rearrangements:</p>
+            \\[ n = M \\times V \\quad,\\quad V = \\frac{n}{M} \\]
+
+            <h4>4. Solution dilution</h4>
+            <p>Dilution keeps solute moles constant, so concentration and volume follow:</p>
+            \\[ M_1 V_1 = M_2 V_2 \\]
+            <p>\\( V_2 \\) is the final total volume after dilution.</p>
+
+            <h4>5. Concentration from density</h4>
+            <p>When density and mass percent are known, molarity is:</p>
+            \\[ M = \\frac{\\rho \\times \\text{w/w\\%} \\times 10}{M_r} \\]
+            <p>Use density (\\( \\rho \\)) in g/mL, w/w% as a percent number (for example 37), and molar mass (\\( M_r \\)) in g/mol.</p>
+        </div>
+    `,
+                generateHTML: function () {
+                    const massUnits = [
+                        { val: 'mg', label: 'milligrams (mg)' },
+                        { val: 'g', label: 'grams (g)' },
+                        { val: 'kg', label: 'kilograms (kg)' },
+                        { val: 'oz', label: 'ounces (oz)' },
+                        { val: 'lb', label: 'pounds (lb)' }
+                    ];
+
+                    const volumeUnits = [
+                        { val: 'mm3', label: 'cubic millimeters (mm3)' },
+                        { val: 'dm3', label: 'cubic decimeters (dm3)' },
+                        { val: 'm3', label: 'cubic meters (m3)' },
+                        { val: 'in3', label: 'cubic inches (cu in)' },
+                        { val: 'ft3', label: 'cubic feet (cu ft)' },
+                        { val: 'ml', label: 'milliliters (mL)' },
+                        { val: 'l', label: 'liters (l)' },
+                        { val: 'us_fl_oz', label: 'fluid ounces (US) (US fl oz)' },
+                        { val: 'uk_fl_oz', label: 'fluid ounces (UK) (UK fl oz)' }
+                    ];
+
+                    const createUnitOptions = (units, defaultUnit) => {
+                        return units.map(unit => {
+                            const selected = unit.val === defaultUnit ? 'selected' : '';
+                            return `<option value="${unit.val}" ${selected}>${unit.label}</option>`;
+                        }).join('');
+                    };
+
+                    const massOptions = createUnitOptions(massUnits, 'g');
+                    const volumeOptions = createUnitOptions(volumeUnits, 'ml');
+
+                    const createInputWithUnit = (idPrefix, label, options, placeholder = 'Enter value') => `
+                <div class="form-group">
+                    <label for="${idPrefix}-val">${label}</label>
+                    <div style="display: flex; align-items: stretch;">
+                        <input type="number" id="${idPrefix}-val" placeholder="${placeholder}" style="border-top-right-radius: 0; border-bottom-right-radius: 0; flex-grow: 1;">
+                        <select id="${idPrefix}-unit" style="width: 220px; margin-left: -1px; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                            ${options}
+                        </select>
+                    </div>
+                </div>
+            `;
+
+                    const createScalarInput = (id, label, suffix = '') => `
+                <div class="form-group">
+                    <label for="${id}">${label}</label>
+                    <div style="display: flex; align-items: stretch;">
+                        <input type="number" id="${id}" placeholder="Enter value" style="${suffix ? 'border-top-right-radius: 0; border-bottom-right-radius: 0;' : ''} flex-grow: 1;">
+                        ${suffix ? `<div style="background: var(--bg-secondary); padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-left: none; border-radius: 0 0.5rem 0.5rem 0; white-space: nowrap;">${suffix}</div>` : ''}
+                    </div>
+                </div>
+            `;
+
+                    const inputs = `
+            <div class="form-group">
+                <label for="conc-mode">I want to calculate...</label>
+                <select id="conc-mode">
+                    <option value="wv">Mass volume percent (w/v%)</option>
+                    <option value="ww">Mass percent (w/w%)</option>
+                    <option value="molarity">Molarity concentration</option>
+                    <option value="dilution">Solution dilution</option>
+                    <option value="density">Concentration from density</option>
+                </select>
+            </div>
+
+            <div id="conc-panel-wv" class="conc-mode-panel">
+                ${createInputWithUnit('conc-wv-mass', 'Mass of solute', massOptions)}
+                ${createInputWithUnit('conc-wv-volume', 'Volume of solution', volumeOptions)}
+                ${createScalarInput('conc-wv-percent', 'Concentration', 'm/v %')}
+            </div>
+
+            <div id="conc-panel-ww" class="conc-mode-panel" style="display: none;">
+                ${createInputWithUnit('conc-ww-solute', 'Mass of solute', massOptions)}
+                ${createInputWithUnit('conc-ww-solution', 'Mass of solution', massOptions)}
+                ${createScalarInput('conc-ww-percent', 'Mass percent', 'w/w %')}
+            </div>
+
+            <div id="conc-panel-molarity" class="conc-mode-panel" style="display: none;">
+                ${createScalarInput('conc-molar-moles', 'Moles of solute (mol)')}
+                ${createInputWithUnit('conc-molar-volume', 'Volume of solution', volumeOptions)}
+                ${createScalarInput('conc-molarity', 'Molarity concentration', 'mol/L')}
+            </div>
+
+            <div id="conc-panel-dilution" class="conc-mode-panel" style="display: none;">
+                ${createScalarInput('conc-dilution-m1', 'Initial concentration M1', 'mol/L')}
+                ${createInputWithUnit('conc-dilution-v1', 'Initial volume V1', volumeOptions)}
+                ${createScalarInput('conc-dilution-m2', 'Final concentration M2', 'mol/L')}
+                ${createInputWithUnit('conc-dilution-v2', 'Final volume V2', volumeOptions)}
+            </div>
+
+            <div id="conc-panel-density" class="conc-mode-panel" style="display: none;">
+                ${createScalarInput('conc-density', 'Density', 'g/mL')}
+                ${createScalarInput('conc-density-ww', 'Mass percent (w/w%)', '%')}
+                ${createScalarInput('conc-density-mm', 'Molar mass', 'g/mol')}
+                ${createScalarInput('conc-density-molarity', 'Molarity', 'mol/L')}
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <button id="conc-clear" class="btn btn-secondary" style="width: 100%;">Clear All</button>
+            </div>
+        `;
+
+                    return createCalculatorLayout(
+                        this.name,
+                        this.description,
+                        inputs,
+                        "concentration-result",
+                        true
+                    );
+                },
+                attachEvents: function () {
+                    const educationalBtn = document.getElementById("what-is-this-btn");
+                    if (educationalBtn) {
+                        educationalBtn.addEventListener("click", () => {
+                            animateReveal(this.educationalHTML, document.getElementById("educational-content-container"));
+                        });
+                    }
+
+                    const resultDiv = document.getElementById("concentration-result");
+                    const modeSelect = document.getElementById("conc-mode");
+
+                    const panels = {
+                        wv: document.getElementById("conc-panel-wv"),
+                        ww: document.getElementById("conc-panel-ww"),
+                        molarity: document.getElementById("conc-panel-molarity"),
+                        dilution: document.getElementById("conc-panel-dilution"),
+                        density: document.getElementById("conc-panel-density")
+                    };
+
+                    const placeholders = {
+                        wv: "Enter any two values to solve the third value for w/v%.",
+                        ww: "Enter any two values to solve the third value for w/w%.",
+                        molarity: "Enter any two values to solve molarity, moles, or volume.",
+                        dilution: "Enter any three values to solve the missing dilution variable.",
+                        density: "Enter any three values to solve the fourth variable."
+                    };
+
+                    const setPlaceholder = (mode) => {
+                        resultDiv.innerHTML = `<span style="opacity: 0.5; font-size: 1rem;">${placeholders[mode]}</span>`;
+                    };
+
+                    const formatNumber = (value, decimals = 6) => {
+                        if (!Number.isFinite(value)) return '';
+                        const fixed = value.toFixed(decimals);
+                        return fixed.replace(/\.?0+$/, '');
+                    };
+
+                    const setInputValue = (input, value, decimals = 6) => {
+                        input.value = formatNumber(value, decimals);
+                    };
+
+                    const massToG = {
+                        mg: 0.001,
+                        g: 1,
+                        kg: 1000,
+                        oz: 28.349523125,
+                        lb: 453.59237
+                    };
+
+                    const volumeToMl = {
+                        mm3: 0.001,
+                        dm3: 1000,
+                        m3: 1000000,
+                        in3: 16.387064,
+                        ft3: 28316.846592,
+                        ml: 1,
+                        l: 1000,
+                        us_fl_oz: 29.5735295625,
+                        uk_fl_oz: 28.4130625
+                    };
+
+                    const toGrams = (value, unit) => value * massToG[unit];
+                    const fromGrams = (value, unit) => value / massToG[unit];
+                    const toMl = (value, unit) => value * volumeToMl[unit];
+                    const fromMl = (value, unit) => value / volumeToMl[unit];
+                    const toL = (value, unit) => toMl(value, unit) / 1000;
+                    const fromL = (value, unit) => fromMl(value * 1000, unit);
+
+                    const getNumber = (input) => {
+                        const parsed = parseFloat(input.value);
+                        return Number.isFinite(parsed) ? parsed : null;
+                    };
+
+                    const hasNegative = (values) => values.some(v => v !== null && v < 0);
+
+                    const refs = {
+                        wv: {
+                            massVal: document.getElementById("conc-wv-mass-val"),
+                            massUnit: document.getElementById("conc-wv-mass-unit"),
+                            volumeVal: document.getElementById("conc-wv-volume-val"),
+                            volumeUnit: document.getElementById("conc-wv-volume-unit"),
+                            percent: document.getElementById("conc-wv-percent")
+                        },
+                        ww: {
+                            soluteVal: document.getElementById("conc-ww-solute-val"),
+                            soluteUnit: document.getElementById("conc-ww-solute-unit"),
+                            solutionVal: document.getElementById("conc-ww-solution-val"),
+                            solutionUnit: document.getElementById("conc-ww-solution-unit"),
+                            percent: document.getElementById("conc-ww-percent")
+                        },
+                        molarity: {
+                            moles: document.getElementById("conc-molar-moles"),
+                            volumeVal: document.getElementById("conc-molar-volume-val"),
+                            volumeUnit: document.getElementById("conc-molar-volume-unit"),
+                            molarity: document.getElementById("conc-molarity")
+                        },
+                        dilution: {
+                            m1: document.getElementById("conc-dilution-m1"),
+                            v1Val: document.getElementById("conc-dilution-v1-val"),
+                            v1Unit: document.getElementById("conc-dilution-v1-unit"),
+                            m2: document.getElementById("conc-dilution-m2"),
+                            v2Val: document.getElementById("conc-dilution-v2-val"),
+                            v2Unit: document.getElementById("conc-dilution-v2-unit")
+                        },
+                        density: {
+                            density: document.getElementById("conc-density"),
+                            ww: document.getElementById("conc-density-ww"),
+                            molarMass: document.getElementById("conc-density-mm"),
+                            molarity: document.getElementById("conc-density-molarity")
+                        }
+                    };
+
+                    const updateWV = () => {
+                        const massInput = refs.wv.massVal;
+                        const massUnitInput = refs.wv.massUnit;
+                        const volumeInput = refs.wv.volumeVal;
+                        const volumeUnitInput = refs.wv.volumeUnit;
+                        const percentInput = refs.wv.percent;
+
+                        const mass = getNumber(massInput);
+                        const volume = getNumber(volumeInput);
+                        const percent = getNumber(percentInput);
+
+                        let grams = mass === null ? null : toGrams(mass, massUnitInput.value);
+                        let ml = volume === null ? null : toMl(volume, volumeUnitInput.value);
+                        let wvPercent = percent;
+
+                        if (hasNegative([grams, ml, wvPercent])) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+
+                        if (grams !== null && ml !== null && ml > 0) {
+                            wvPercent = (grams / ml) * 100;
+                            setInputValue(percentInput, wvPercent, 6);
+                        } else if (wvPercent !== null && ml !== null && ml > 0) {
+                            grams = (wvPercent * ml) / 100;
+                            setInputValue(massInput, fromGrams(grams, massUnitInput.value), 6);
+                        } else if (wvPercent !== null && grams !== null && wvPercent > 0) {
+                            ml = (grams * 100) / wvPercent;
+                            setInputValue(volumeInput, fromMl(ml, volumeUnitInput.value), 6);
+                        } else {
+                            setPlaceholder("wv");
+                            return;
+                        }
+
+                        if (grams === null || ml === null || ml <= 0) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Provide valid values to compute w/v%.</span>';
+                            return;
+                        }
+
+                        resultDiv.innerHTML = `
+                            <div>Mass volume percent: <strong>${formatNumber((grams / ml) * 100, 4)}% (m/v)</strong></div>
+                            <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                Equivalent to ${formatNumber((grams / ml) * 100, 4)} g per 100 mL of solution.
+                            </div>
+                        `;
+                    };
+
+                    const updateWW = () => {
+                        const soluteMass = getNumber(refs.ww.soluteVal);
+                        const solutionMass = getNumber(refs.ww.solutionVal);
+                        const wwPercentInput = getNumber(refs.ww.percent);
+
+                        let gSolute = soluteMass === null ? null : toGrams(soluteMass, refs.ww.soluteUnit.value);
+                        let gSolution = solutionMass === null ? null : toGrams(solutionMass, refs.ww.solutionUnit.value);
+                        let wwPercent = wwPercentInput;
+
+                        if (hasNegative([gSolute, gSolution, wwPercent])) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+
+                        if (wwPercent !== null && wwPercent > 100) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Mass percent should be between 0 and 100.</span>';
+                            return;
+                        }
+
+                        if (gSolute !== null && gSolution !== null && gSolution > 0) {
+                            wwPercent = (gSolute / gSolution) * 100;
+                            setInputValue(refs.ww.percent, wwPercent, 6);
+                        } else if (wwPercent !== null && gSolution !== null) {
+                            gSolute = gSolution * (wwPercent / 100);
+                            setInputValue(refs.ww.soluteVal, fromGrams(gSolute, refs.ww.soluteUnit.value), 6);
+                        } else if (wwPercent !== null && wwPercent > 0 && gSolute !== null) {
+                            gSolution = gSolute * (100 / wwPercent);
+                            setInputValue(refs.ww.solutionVal, fromGrams(gSolution, refs.ww.solutionUnit.value), 6);
+                        } else {
+                            setPlaceholder("ww");
+                            return;
+                        }
+
+                        if (gSolution === null || gSolution <= 0 || gSolute === null || gSolute > gSolution) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Check that solution mass is positive and at least as large as solute mass.</span>';
+                            return;
+                        }
+
+                        const gSolvent = gSolution - gSolute;
+                        resultDiv.innerHTML = `
+                            <div>Mass percent: <strong>${formatNumber((gSolute / gSolution) * 100, 4)}% (w/w)</strong></div>
+                            <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                Solvent mass: ${formatNumber(gSolvent, 4)} g
+                            </div>
+                        `;
+                    };
+
+                    const updateMolarity = () => {
+                        const molesInput = getNumber(refs.molarity.moles);
+                        const volumeInput = getNumber(refs.molarity.volumeVal);
+                        const molarityInput = getNumber(refs.molarity.molarity);
+
+                        let moles = molesInput;
+                        let liters = volumeInput === null ? null : toL(volumeInput, refs.molarity.volumeUnit.value);
+                        let molarity = molarityInput;
+
+                        if (hasNegative([moles, liters, molarity])) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+
+                        if (moles !== null && liters !== null && liters > 0) {
+                            molarity = moles / liters;
+                            setInputValue(refs.molarity.molarity, molarity, 6);
+                        } else if (molarity !== null && liters !== null) {
+                            moles = molarity * liters;
+                            setInputValue(refs.molarity.moles, moles, 6);
+                        } else if (molarity !== null && molarity > 0 && moles !== null) {
+                            liters = moles / molarity;
+                            setInputValue(refs.molarity.volumeVal, fromL(liters, refs.molarity.volumeUnit.value), 6);
+                        } else {
+                            setPlaceholder("molarity");
+                            return;
+                        }
+
+                        if (moles === null || liters === null || liters <= 0) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Provide valid moles and volume for molarity.</span>';
+                            return;
+                        }
+
+                        resultDiv.innerHTML = `
+                            <div>Molarity: <strong>${formatNumber(moles / liters, 4)} mol/L</strong></div>
+                            <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                (${formatNumber(moles, 4)} mol in ${formatNumber(liters, 4)} L)
+                            </div>
+                        `;
+                    };
+
+                    const updateDilution = () => {
+                        let m1 = getNumber(refs.dilution.m1);
+                        let v1 = getNumber(refs.dilution.v1Val);
+                        let m2 = getNumber(refs.dilution.m2);
+                        let v2 = getNumber(refs.dilution.v2Val);
+
+                        let v1L = v1 === null ? null : toL(v1, refs.dilution.v1Unit.value);
+                        let v2L = v2 === null ? null : toL(v2, refs.dilution.v2Unit.value);
+
+                        if (hasNegative([m1, v1L, m2, v2L])) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+
+                        const known = [m1, v1L, m2, v2L].filter(v => v !== null).length;
+                        if (known < 3) {
+                            setPlaceholder("dilution");
+                            return;
+                        }
+
+                        if (known === 3) {
+                            if (m1 === null && v1L !== null && v1L > 0 && m2 !== null && v2L !== null) {
+                                m1 = (m2 * v2L) / v1L;
+                                setInputValue(refs.dilution.m1, m1, 6);
+                            } else if (v1L === null && m1 !== null && m1 > 0 && m2 !== null && v2L !== null) {
+                                v1L = (m2 * v2L) / m1;
+                                setInputValue(refs.dilution.v1Val, fromL(v1L, refs.dilution.v1Unit.value), 6);
+                            } else if (m2 === null && v2L !== null && v2L > 0 && m1 !== null && v1L !== null) {
+                                m2 = (m1 * v1L) / v2L;
+                                setInputValue(refs.dilution.m2, m2, 6);
+                            } else if (v2L === null && m2 !== null && m2 > 0 && m1 !== null && v1L !== null) {
+                                v2L = (m1 * v1L) / m2;
+                                setInputValue(refs.dilution.v2Val, fromL(v2L, refs.dilution.v2Unit.value), 6);
+                            }
+                        }
+
+                        if ([m1, v1L, m2, v2L].some(v => v === null || v <= 0)) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Dilution requires positive values and non-zero denominators.</span>';
+                            return;
+                        }
+
+                        const left = m1 * v1L;
+                        const right = m2 * v2L;
+                        const relativeError = Math.abs(left - right) / Math.max(1, Math.abs(left), Math.abs(right));
+                        const isMismatch = relativeError > 0.001;
+
+                        const moleLine = isMismatch
+                            ? `<div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                   Moles before dilution: ${formatNumber(left, 4)} mol<br>
+                                   Moles after dilution: ${formatNumber(right, 4)} mol
+                               </div>`
+                            : `<div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                   Conserved moles: ${formatNumber(left, 4)} mol
+                               </div>`;
+
+                        const mismatchText = isMismatch
+                            ? '<div style="margin-top: 0.5rem; color: #b46a00;">Current values do not exactly satisfy M1V1 = M2V2.</div>'
+                            : '';
+
+                        resultDiv.innerHTML = `
+                            <div><strong>M1V1 = M2V2</strong></div>
+                            <div style="margin-top: 0.5rem;">
+                                ${formatNumber(m1, 4)} * ${formatNumber(v1L, 4)} = ${formatNumber(m2, 4)} * ${formatNumber(v2L, 4)}
+                            </div>
+                            ${moleLine}
+                            ${mismatchText}
+                        `;
+                    };
+
+                    const updateDensity = () => {
+                        let density = getNumber(refs.density.density);
+                        let ww = getNumber(refs.density.ww);
+                        let molarMass = getNumber(refs.density.molarMass);
+                        let molarity = getNumber(refs.density.molarity);
+
+                        if (hasNegative([density, ww, molarMass, molarity])) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+
+                        if (ww !== null && ww > 100) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Mass percent (w/w%) must be between 0 and 100.</span>';
+                            return;
+                        }
+
+                        const known = [density, ww, molarMass, molarity].filter(v => v !== null).length;
+                        if (known < 3) {
+                            setPlaceholder("density");
+                            return;
+                        }
+
+                        if (known === 3) {
+                            if (molarity === null && density !== null && ww !== null && molarMass !== null && molarMass > 0) {
+                                molarity = (density * ww * 10) / molarMass;
+                                setInputValue(refs.density.molarity, molarity, 6);
+                            } else if (density === null && ww !== null && ww > 0 && molarMass !== null && molarity !== null) {
+                                density = (molarity * molarMass) / (ww * 10);
+                                setInputValue(refs.density.density, density, 6);
+                            } else if (ww === null && density !== null && density > 0 && molarMass !== null && molarity !== null) {
+                                ww = (molarity * molarMass) / (density * 10);
+                                if (ww > 100) {
+                                    resultDiv.innerHTML = '<span style="color: #c0392b;">Computed w/w% is greater than 100. Check your inputs.</span>';
+                                    return;
+                                }
+                                setInputValue(refs.density.ww, ww, 6);
+                            } else if (molarMass === null && molarity !== null && molarity > 0 && density !== null && ww !== null) {
+                                molarMass = (density * ww * 10) / molarity;
+                                setInputValue(refs.density.molarMass, molarMass, 6);
+                            }
+                        }
+
+                        if ([density, ww, molarMass, molarity].some(v => v === null) || molarMass <= 0) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Provide three valid values and ensure molar mass is greater than zero.</span>';
+                            return;
+                        }
+
+                        const computedMolarity = (density * ww * 10) / molarMass;
+                        const densityMismatch = molarity !== null
+                            ? Math.abs(computedMolarity - molarity) / Math.max(1, Math.abs(computedMolarity), Math.abs(molarity)) > 0.001
+                            : false;
+
+                        const consistencyText = densityMismatch
+                            ? `<div style="margin-top: 0.5rem; color: #b46a00;">
+                                   Entered molarity (${formatNumber(molarity, 4)} mol/L) does not match density-based molarity.
+                               </div>`
+                            : '';
+
+                        resultDiv.innerHTML = `
+                            <div>Molarity from density data: <strong>${formatNumber(computedMolarity, 4)} mol/L</strong></div>
+                            <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                Formula used: M = (density * w/w% * 10) / molar mass
+                            </div>
+                            ${consistencyText}
+                        `;
+                    };
+
+                    const updateActiveMode = () => {
+                        const mode = modeSelect.value;
+                        if (mode === "wv") updateWV();
+                        else if (mode === "ww") updateWW();
+                        else if (mode === "molarity") updateMolarity();
+                        else if (mode === "dilution") updateDilution();
+                        else if (mode === "density") updateDensity();
+                    };
+
+                    const showActivePanel = () => {
+                        const mode = modeSelect.value;
+                        Object.entries(panels).forEach(([key, panel]) => {
+                            panel.style.display = key === mode ? "block" : "none";
+                        });
+                        setPlaceholder(mode);
+                        updateActiveMode();
+                    };
+
+                    const valueInputIds = [
+                        "conc-wv-mass-val", "conc-wv-volume-val", "conc-wv-percent",
+                        "conc-ww-solute-val", "conc-ww-solution-val", "conc-ww-percent",
+                        "conc-molar-moles", "conc-molar-volume-val", "conc-molarity",
+                        "conc-dilution-m1", "conc-dilution-v1-val", "conc-dilution-m2", "conc-dilution-v2-val",
+                        "conc-density", "conc-density-ww", "conc-density-mm", "conc-density-molarity"
+                    ];
+
+                    const convertBetweenUnits = (value, fromUnit, toUnit, kind) => {
+                        if (fromUnit === toUnit) return value;
+                        if (kind === "mass") {
+                            return fromGrams(toGrams(value, fromUnit), toUnit);
+                        }
+                        return fromMl(toMl(value, fromUnit), toUnit);
+                    };
+
+                    const unitPairs = [
+                        { valueId: "conc-wv-mass-val", unitId: "conc-wv-mass-unit", kind: "mass" },
+                        { valueId: "conc-wv-volume-val", unitId: "conc-wv-volume-unit", kind: "volume" },
+                        { valueId: "conc-ww-solute-val", unitId: "conc-ww-solute-unit", kind: "mass" },
+                        { valueId: "conc-ww-solution-val", unitId: "conc-ww-solution-unit", kind: "mass" },
+                        { valueId: "conc-molar-volume-val", unitId: "conc-molar-volume-unit", kind: "volume" },
+                        { valueId: "conc-dilution-v1-val", unitId: "conc-dilution-v1-unit", kind: "volume" },
+                        { valueId: "conc-dilution-v2-val", unitId: "conc-dilution-v2-unit", kind: "volume" }
+                    ];
+
+                    valueInputIds.forEach(id => {
+                        const element = document.getElementById(id);
+                        element.addEventListener("input", updateActiveMode);
+                    });
+
+                    unitPairs.forEach(({ valueId, unitId, kind }) => {
+                        const valueInput = document.getElementById(valueId);
+                        const unitSelect = document.getElementById(unitId);
+                        unitSelect.dataset.prevUnit = unitSelect.value;
+
+                        unitSelect.addEventListener("change", () => {
+                            const currentValue = getNumber(valueInput);
+                            const previousUnit = unitSelect.dataset.prevUnit || unitSelect.value;
+                            const nextUnit = unitSelect.value;
+
+                            if (currentValue !== null) {
+                                const convertedValue = convertBetweenUnits(currentValue, previousUnit, nextUnit, kind);
+                                setInputValue(valueInput, convertedValue, 6);
+                            }
+
+                            unitSelect.dataset.prevUnit = nextUnit;
+                            updateActiveMode();
+                        });
+                    });
+
+                    modeSelect.addEventListener("change", showActivePanel);
+
+                    const clearBtn = document.getElementById("conc-clear");
+                    clearBtn.addEventListener("click", () => {
+                        valueInputIds.forEach(id => {
+                            document.getElementById(id).value = "";
+                        });
+                        modeSelect.value = "wv";
+                        showActivePanel();
+                    });
+
+                    showActivePanel();
+                }
+            },
+            {
                 id: "mass-percent-calculator",
                 name: "Mass Percentage Calculator",
                 description: "Calculate the mass percentage of a solute in a solution, a chemical component in a compound, or the percent composition of a mixture.",
@@ -706,10 +1322,10 @@ export const chemistryCalculators = {
             <p><strong>Problem:</strong> Calculate the mass percent of hydrochloric acid (HCl) in a solution containing 43 g of HCl and 200 g of water.</p>
             <p><strong>Solution:</strong></p>
             <ol>
-                <li>Mass of Solute (HCl) = 43 g</li>
-                <li>Mass of Solvent (Water) = 200 g</li>
-                <li>Total Mass of Solution = 43 g + 200 g = 243 g</li>
-                <li>Mass Percent = (43 / 243) × 100 ≈ 17.70%</li>
+                <li>Mass of Solute (HCl) = \\( 43 \\text{ g} \\)</li>
+                <li>Mass of Solvent (Water) = \\( 200 \\text{ g} \\)</li>
+                <li>Total Mass of Solution = \\( 43 \\text{ g} + 200 \\text{ g} = 243 \\text{ g} \\)</li>
+                <li>\\( \\text{Mass Percent} = \\frac{43}{243} \\times 100 \\approx 17.70\\% \\)</li>
             </ol>
         </div>
     `,
@@ -860,7 +1476,7 @@ export const chemistryCalculators = {
                     // Unit factors relative to grams
                     const factors = {
                         'ug': 1e-6, 'mg': 1e-3, 'g': 1, 'dag': 10, 'kg': 1000, 't': 1e6,
-                        'oz': 28.3495, 'lb': 453.592
+                        'oz': 28.349523125, 'lb': 453.59237
                     };
 
                     const toGrams = (val, unit) => val * factors[unit];
