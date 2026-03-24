@@ -1270,6 +1270,240 @@ export const chemistryCalculators = {
                 }
             },
             {
+                id: "water-hardness-calculator",
+                name: "Water Hardness Calculator",
+                description: "Calculate total water hardness from calcium and magnesium, or solve for a missing component concentration.",
+                educationalHTML: `
+        <div class="educational-section">
+            <h3>Water Hardness Chemistry</h3>
+            <p>Water hardness is primarily caused by dissolved calcium (Ca2+) and magnesium (Mg2+) ions.</p>
+            <p>To combine calcium and magnesium into one standardized hardness number, concentrations are expressed as CaCO3 equivalents.</p>
+
+            <h4>Hardness Equation (mg/L basis)</h4>
+            \\[
+                \\text{Total Hardness} = (2.497 \\times [Ca^{2+}]) + (4.118 \\times [Mg^{2+}])
+            \\]
+            <p>Where calcium and magnesium are in mg/L, and hardness is reported as mg/L as CaCO3 equivalent.</p>
+
+            <h4>Common Unit Relationships</h4>
+            <ul>
+                <li>1 g/L = 1000 mg/L</li>
+                <li>1 g/mL = 1,000,000 mg/L</li>
+                <li>1 lb/US gal ≈ 119,826.4 mg/L</li>
+                <li>1 ppm ≈ 1 mg/L (for dilute water solutions)</li>
+            </ul>
+        </div>
+    `,
+                generateHTML: function () {
+                    const units = [
+                        { val: 'g_l', label: 'grams per liter (g/L)' },
+                        { val: 'g_ml', label: 'grams per milliliter (g/mL)' },
+                        { val: 'lb_us_gal', label: 'pounds per gallon (US) (lb/US gal)' },
+                        { val: 'mg_l', label: 'milligrams per liter (mg/L)' },
+                        { val: 'ppm', label: 'parts per million (ppm)' }
+                    ];
+
+                    const unitOptions = units.map(unit => {
+                        const selected = unit.val === 'mg_l' ? 'selected' : '';
+                        return `<option value="${unit.val}" ${selected}>${unit.label}</option>`;
+                    }).join('');
+
+                    const createInputWithUnit = (idPrefix, label) => `
+                <div class="form-group">
+                    <label for="${idPrefix}-val">${label}</label>
+                    <div style="display: flex; align-items: stretch;">
+                        <input type="number" id="${idPrefix}-val" placeholder="Enter value" style="border-top-right-radius: 0; border-bottom-right-radius: 0; flex-grow: 1;">
+                        <select id="${idPrefix}-unit" style="width: 260px; margin-left: -1px; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                            ${unitOptions}
+                        </select>
+                    </div>
+                </div>
+            `;
+
+                    const inputs = `
+            ${createInputWithUnit('wh-calcium', 'Calcium content')}
+            ${createInputWithUnit('wh-magnesium', 'Magnesium content')}
+            ${createInputWithUnit('wh-hardness', 'Water hardness')}
+
+            <div style="margin-top: 1rem;">
+                <button id="wh-clear" class="btn btn-secondary" style="width: 100%;">Clear All</button>
+            </div>
+        `;
+
+                    return createCalculatorLayout(
+                        this.name,
+                        this.description,
+                        inputs,
+                        "water-hardness-result",
+                        true
+                    );
+                },
+                attachEvents: function () {
+                    const educationalBtn = document.getElementById("what-is-this-btn");
+                    if (educationalBtn) {
+                        educationalBtn.addEventListener("click", () => {
+                            animateReveal(this.educationalHTML, document.getElementById("educational-content-container"));
+                        });
+                    }
+
+                    const resultDiv = document.getElementById("water-hardness-result");
+                    const inputs = {
+                        calcium: {
+                            val: document.getElementById("wh-calcium-val"),
+                            unit: document.getElementById("wh-calcium-unit")
+                        },
+                        magnesium: {
+                            val: document.getElementById("wh-magnesium-val"),
+                            unit: document.getElementById("wh-magnesium-unit")
+                        },
+                        hardness: {
+                            val: document.getElementById("wh-hardness-val"),
+                            unit: document.getElementById("wh-hardness-unit")
+                        }
+                    };
+
+                    const toMgL = {
+                        g_l: 1000,
+                        g_ml: 1000000,
+                        lb_us_gal: 119826.427316,
+                        mg_l: 1,
+                        ppm: 1
+                    };
+
+                    const convertToMgL = (value, unit) => value * toMgL[unit];
+                    const convertFromMgL = (value, unit) => value / toMgL[unit];
+
+                    const parseInput = (inputEl) => {
+                        const parsed = parseFloat(inputEl.value);
+                        return Number.isFinite(parsed) ? parsed : null;
+                    };
+
+                    const formatNumber = (value, decimals = 6) => {
+                        if (!Number.isFinite(value)) return '';
+                        const fixed = value.toFixed(decimals);
+                        return fixed.replace(/\.?0+$/, '');
+                    };
+
+                    const setInputValue = (inputEl, value, decimals = 6) => {
+                        inputEl.value = formatNumber(value, decimals);
+                    };
+
+                    const setPlaceholder = () => {
+                        resultDiv.innerHTML = '<span style="opacity: 0.5; font-size: 1rem;">Enter any two values to solve the third.</span>';
+                    };
+
+                    const updateHardness = () => {
+                        const caInput = parseInput(inputs.calcium.val);
+                        const mgInput = parseInput(inputs.magnesium.val);
+                        const hInput = parseInput(inputs.hardness.val);
+
+                        let caMgL = caInput === null ? null : convertToMgL(caInput, inputs.calcium.unit.value);
+                        let mgMgL = mgInput === null ? null : convertToMgL(mgInput, inputs.magnesium.unit.value);
+                        let hMgL = hInput === null ? null : convertToMgL(hInput, inputs.hardness.unit.value);
+
+                        if ([caMgL, mgMgL, hMgL].some(v => v !== null && v < 0)) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+
+                        const knownCount = [caMgL, mgMgL, hMgL].filter(v => v !== null).length;
+                        if (knownCount < 2) {
+                            setPlaceholder();
+                            return;
+                        }
+
+                        if (knownCount === 2) {
+                            if (hMgL === null && caMgL !== null && mgMgL !== null) {
+                                hMgL = (2.497 * caMgL) + (4.118 * mgMgL);
+                                setInputValue(inputs.hardness.val, convertFromMgL(hMgL, inputs.hardness.unit.value), 6);
+                            } else if (caMgL === null && hMgL !== null && mgMgL !== null) {
+                                caMgL = (hMgL - (4.118 * mgMgL)) / 2.497;
+                                if (caMgL < 0) {
+                                    resultDiv.innerHTML = '<span style="color: #c0392b;">Inputs are inconsistent (computed calcium is negative).</span>';
+                                    return;
+                                }
+                                setInputValue(inputs.calcium.val, convertFromMgL(caMgL, inputs.calcium.unit.value), 6);
+                            } else if (mgMgL === null && hMgL !== null && caMgL !== null) {
+                                mgMgL = (hMgL - (2.497 * caMgL)) / 4.118;
+                                if (mgMgL < 0) {
+                                    resultDiv.innerHTML = '<span style="color: #c0392b;">Inputs are inconsistent (computed magnesium is negative).</span>';
+                                    return;
+                                }
+                                setInputValue(inputs.magnesium.val, convertFromMgL(mgMgL, inputs.magnesium.unit.value), 6);
+                            }
+                        }
+
+                        if ([caMgL, mgMgL, hMgL].some(v => v === null)) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Provide any two valid values.</span>';
+                            return;
+                        }
+
+                        const computedHardnessMgL = (2.497 * caMgL) + (4.118 * mgMgL);
+                        const relativeError = Math.abs(computedHardnessMgL - hMgL) / Math.max(1, Math.abs(computedHardnessMgL), Math.abs(hMgL));
+                        const mismatchText = relativeError > 0.001
+                            ? `<div style="margin-top: 0.5rem; color: #b46a00;">
+                                   Entered hardness does not match Ca/Mg-based hardness.
+                               </div>`
+                            : '';
+
+                        resultDiv.innerHTML = `
+                            <div>Total hardness (as CaCO3 equivalent): <strong>${formatNumber(computedHardnessMgL, 4)} mg/L</strong></div>
+                            <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                Formula: Hardness = 2.497*Ca + 4.118*Mg (all in mg/L)
+                            </div>
+                            ${mismatchText}
+                        `;
+                    };
+
+                    const convertBetweenUnits = (value, fromUnit, toUnit) => {
+                        if (fromUnit === toUnit) return value;
+                        return convertFromMgL(convertToMgL(value, fromUnit), toUnit);
+                    };
+
+                    const unitPairs = [
+                        { valueId: "wh-calcium-val", unitId: "wh-calcium-unit" },
+                        { valueId: "wh-magnesium-val", unitId: "wh-magnesium-unit" },
+                        { valueId: "wh-hardness-val", unitId: "wh-hardness-unit" }
+                    ];
+
+                    ["wh-calcium-val", "wh-magnesium-val", "wh-hardness-val"].forEach(id => {
+                        const element = document.getElementById(id);
+                        element.addEventListener("input", updateHardness);
+                    });
+
+                    unitPairs.forEach(({ valueId, unitId }) => {
+                        const valueInput = document.getElementById(valueId);
+                        const unitSelect = document.getElementById(unitId);
+                        unitSelect.dataset.prevUnit = unitSelect.value;
+
+                        unitSelect.addEventListener("change", () => {
+                            const currentValue = parseInput(valueInput);
+                            const previousUnit = unitSelect.dataset.prevUnit || unitSelect.value;
+                            const nextUnit = unitSelect.value;
+
+                            if (currentValue !== null) {
+                                const converted = convertBetweenUnits(currentValue, previousUnit, nextUnit);
+                                setInputValue(valueInput, converted, 6);
+                            }
+
+                            unitSelect.dataset.prevUnit = nextUnit;
+                            updateHardness();
+                        });
+                    });
+
+                    const clearBtn = document.getElementById("wh-clear");
+                    clearBtn.addEventListener("click", () => {
+                        inputs.calcium.val.value = "";
+                        inputs.magnesium.val.value = "";
+                        inputs.hardness.val.value = "";
+                        setPlaceholder();
+                    });
+
+                    setPlaceholder();
+                    updateHardness();
+                }
+            },
+            {
                 id: "mass-percent-calculator",
                 name: "Mass Percentage Calculator",
                 description: "Calculate the mass percentage of a solute in a solution, a chemical component in a compound, or the percent composition of a mixture.",
