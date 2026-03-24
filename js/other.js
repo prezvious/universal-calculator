@@ -607,7 +607,7 @@ export const otherCalculators = {
             </p>
             <div style="display: flex; gap: 0.5rem;">
                 <button id="roman-convert" class="calculate-btn" style="flex: 2; margin-top: 0;">Convert</button>
-                <button id="roman-clear" class="calculate-btn" style="flex: 1; margin-top: 0; background: var(--text-secondary);">Clear</button>
+                <button id="roman-clear" class="btn btn-secondary" style="flex: 1; margin-top: 0;">Clear</button>
             </div>
           `;
                     return createCalculatorLayout(
