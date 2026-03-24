@@ -867,6 +867,29 @@ button.calculate-btn:focus-visible {
   --bg-topbar: rgba(18, 18, 18, 0.9);
 }
 
+/* Keep results panel always dark in dark themes */
+[data-theme="dark"] .calculator-results {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .calculator-results h3 {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] .calculator-results .what-is-this-btn {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="dark"][data-variant="enhanced"] .calculator-results {
+  background: #000000;
+}
+
+[data-theme="dark"][data-variant="gentle"] .calculator-results {
+  background: #222222;
+}
+
 /* Settings Button */
 .settings-btn {
   background: transparent;
