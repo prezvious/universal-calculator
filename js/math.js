@@ -1,5 +1,268 @@
 import { createCalculatorLayout, animateReveal } from './utils.js';
-import { calculateTimePercentage } from './mathUtils.js';
+import { calculatePowerMod, calculateTimePercentage } from './mathUtils.js';
+import { linearAlgebraCalculator } from './linearAlgebraCalculator.js';
+
+const powerModCalculator = {
+  id: "power-mod-calculator",
+  name: "Power Mod Calculator",
+  description: "Compute modular powers, inverses, and number-theory reductions with exact integer arithmetic.",
+  educationalHTML: `
+      <div class="educational-section">
+          <h3>Power Mod</h3>
+          <p>Power Mod, or modular exponentiation, finds the standard residue of a power modulo a positive integer.</p>
+          \\[
+              a^k \\bmod m = r
+          \\]
+          <p>The result is the unique integer \\( r \\) in the standard residue range:</p>
+          \\[
+              0 \\le r < m
+          \\]
+
+          <h4>Congruence Form</h4>
+          <p>The same statement can be written as a congruence.</p>
+          \\[
+              a^k \\equiv r \\pmod m
+          \\]
+
+          <h4>Repeated Squaring</h4>
+          <p>The calculator uses fast modular exponentiation. It reduces the base and each intermediate product modulo \\( m \\), so it never needs to construct the full value of \\( a^k \\).</p>
+          \\[
+              a^k \\bmod m = (a \\bmod m)^k \\bmod m
+          \\]
+
+          <h4>Negative Exponents</h4>
+          <p>A negative exponent requires a modular inverse. The inverse exists exactly when the base and modulus are relatively prime.</p>
+          \\[
+              a^{-1}a \\equiv 1 \\pmod m
+          \\]
+          \\[
+              \\gcd(a,m)=1
+          \\]
+
+          <h4>Euler and Fermat Reductions</h4>
+          <p>When \\( \\gcd(a,m)=1 \\), Euler's theorem can reduce exponents:</p>
+          \\[
+              a^{\\varphi(m)} \\equiv 1 \\pmod m
+          \\]
+          <p>If \\( m=p \\) is prime and \\( p \\nmid a \\), Fermat's little theorem gives:</p>
+          \\[
+              a^{p-1} \\equiv 1 \\pmod p
+          \\]
+      </div>
+  `,
+  generateHTML: function () {
+    const inputs = `
+      <div class="form-group">
+          <label for="power-mod-base">Base a</label>
+          <input type="text" id="power-mod-base" inputmode="numeric" placeholder="e.g. -3">
+      </div>
+      <div class="form-group">
+          <label for="power-mod-exponent">Exponent k</label>
+          <input type="text" id="power-mod-exponent" inputmode="numeric" placeholder="e.g. 128">
+      </div>
+      <div class="form-group">
+          <label for="power-mod-modulus">Modulus m</label>
+          <input type="text" id="power-mod-modulus" inputmode="numeric" placeholder="e.g. 13">
+      </div>
+      <label class="calc-checkbox">
+          <input type="checkbox" id="power-mod-allow-negative">
+          <span>Allow negative exponents when a modular inverse exists</span>
+      </label>
+      <label class="calc-checkbox">
+          <input type="checkbox" id="power-mod-show-steps" checked>
+          <span>Show repeated-squaring steps</span>
+      </label>
+      <button id="calculate-power-mod" class="calculate-btn" type="button">Calculate</button>
+    `;
+
+    return createCalculatorLayout(
+      this.name,
+      this.description,
+      inputs,
+      "power-mod-result",
+      true
+    );
+  },
+  attachEvents: function () {
+    const educationalBtn = document.getElementById("what-is-this-btn");
+    if (educationalBtn) {
+      educationalBtn.addEventListener("click", () => {
+        animateReveal(this.educationalHTML, document.getElementById("educational-content-container"));
+      });
+    }
+
+    const resultDiv = document.getElementById("power-mod-result");
+    const baseInput = document.getElementById("power-mod-base");
+    const exponentInput = document.getElementById("power-mod-exponent");
+    const modulusInput = document.getElementById("power-mod-modulus");
+    const allowNegativeInput = document.getElementById("power-mod-allow-negative");
+    const showStepsInput = document.getElementById("power-mod-show-steps");
+    const calculateBtn = document.getElementById("calculate-power-mod");
+
+    const setPlaceholder = () => {
+      resultDiv.innerHTML = '<span class="result-placeholder">Enter integer values for a, k, and m.</span>';
+    };
+
+    const typesetResult = () => {
+      if (window.MathJax) {
+        window.MathJax.typesetPromise([resultDiv]).catch((error) => {
+          console.error("MathJax typesetting failed:", error);
+        });
+      }
+    };
+
+    const hasAllInputs = () => (
+      baseInput.value.trim() !== "" &&
+      exponentInput.value.trim() !== "" &&
+      modulusInput.value.trim() !== ""
+    );
+
+    const latexInteger = (value) => {
+      const text = value.toString();
+      return text.startsWith("-") ? `(${text})` : text;
+    };
+
+    const formatInteger = (value) => value.toString();
+
+    const renderSteps = (calculation) => {
+      if (!showStepsInput.checked) {
+        return "";
+      }
+
+      if (calculation.effectiveExponent === 0n) {
+        return `
+          <div class="calc-note">
+              The exponent is zero, so the calculator uses \\( a^0 = 1 \\) and returns \\( 1 \\bmod m \\).
+          </div>
+        `;
+      }
+
+      const rows = calculation.steps.map((step) => `
+        <tr>
+            <td>${step.bitIndex}</td>
+            <td>${step.bit}</td>
+            <td>${formatInteger(step.baseResidue)}</td>
+            <td>${formatInteger(step.resultBefore)}</td>
+            <td>${formatInteger(step.resultAfter)}</td>
+        </tr>
+      `).join("");
+
+      const truncated = calculation.stepsTruncated
+        ? '<p class="calc-note">Step display is truncated, but the final result uses the full exponent.</p>'
+        : '';
+
+      return `
+        <div class="calc-section">
+            <h4>Repeated-squaring steps</h4>
+            <div class="calc-table-wrap">
+                <table class="calc-data-table">
+                    <thead>
+                        <tr>
+                            <th>Bit</th>
+                            <th>Value</th>
+                            <th>Base residue</th>
+                            <th>Result before</th>
+                            <th>Result after</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            ${truncated}
+        </div>
+      `;
+    };
+
+    const renderReductionInfo = (calculation) => {
+      const info = calculation.reductionInfo;
+      const gcd = formatInteger(calculation.gcd);
+
+      if (!info.canFactor) {
+        return `
+          <div class="calc-note">
+              \\(\\gcd(a,m)=${gcd}\\). Euler/Fermat reduction was skipped because the modulus is above ${info.factorLimit.toString()}.
+          </div>
+        `;
+      }
+
+      if (!info.isCoprime) {
+        return `
+          <div class="calc-warning">
+              \\(\\gcd(a,m)=${gcd}\\), so Euler/Fermat exponent reduction is not safe for this base and modulus.
+          </div>
+        `;
+      }
+
+      const theoremLabel = info.theorem === "Fermat" ? "Fermat's little theorem" : "Euler's theorem";
+      const modulusLabel = info.theorem === "Fermat"
+        ? `The modulus is prime, so \\(\\varphi(m)=m-1=${info.phi.toString()}\\).`
+        : `\\(\\varphi(m)=${info.phi.toString()}\\).`;
+
+      return `
+        <div class="calc-note">
+            \\(\\gcd(a,m)=1\\). ${theoremLabel} applies. ${modulusLabel}
+            The effective exponent reduces to \\(${info.reducedExponent.toString()}\\) modulo \\(${info.phi.toString()}\\).
+        </div>
+      `;
+    };
+
+    const calculate = () => {
+      if (!hasAllInputs()) {
+        setPlaceholder();
+        return;
+      }
+
+      try {
+        const calculation = calculatePowerMod(
+          baseInput.value,
+          exponentInput.value,
+          modulusInput.value,
+          {
+            allowNegativeExponent: allowNegativeInput.checked,
+            maxSteps: 96
+          }
+        );
+
+        const negativeExponentNote = calculation.inverse === null
+          ? ""
+          : `
+            <div class="calc-note">
+                Since \\(\\gcd(a,m)=1\\), the modular inverse is \\(a^{-1}\\equiv ${calculation.inverse.toString()}\\pmod{${calculation.modulus.toString()}}\\).
+                The calculator evaluates \\(${calculation.inverse.toString()}^{${calculation.effectiveExponent.toString()}}\\bmod ${calculation.modulus.toString()}\\).
+            </div>
+          `;
+
+        resultDiv.innerHTML = `
+          <div class="result-main">
+              \\[
+                  ${latexInteger(calculation.base)}^{${calculation.exponent.toString()}} \\bmod ${calculation.modulus.toString()} = ${calculation.result.toString()}
+              \\]
+              <div>Result: <strong>${calculation.result.toString()}</strong></div>
+              <div>Range guarantee: \\(0 \\le ${calculation.result.toString()} < ${calculation.modulus.toString()}\\)</div>
+              <div>Congruence: \\(${latexInteger(calculation.base)}^{${calculation.exponent.toString()}} \\equiv ${calculation.result.toString()} \\pmod{${calculation.modulus.toString()}}\\)</div>
+              <div>Binary exponent used: <code>${calculation.binaryExponent}</code></div>
+          </div>
+          ${negativeExponentNote}
+          ${renderReductionInfo(calculation)}
+          ${renderSteps(calculation)}
+        `;
+        typesetResult();
+      } catch (error) {
+        resultDiv.innerHTML = `<span class="calc-error">${error.message}</span>`;
+      }
+    };
+
+    calculateBtn.addEventListener("click", calculate);
+    [baseInput, exponentInput, modulusInput].forEach((input) => {
+      input.addEventListener("input", calculate);
+    });
+    [allowNegativeInput, showStepsInput].forEach((input) => {
+      input.addEventListener("change", calculate);
+    });
+
+    setPlaceholder();
+  },
+};
 
 export const mathCalculators = {
   icon: "icon-math",
@@ -808,7 +1071,11 @@ export const mathCalculators = {
         },
       },
     ],
+    linearAlgebra: [
+      linearAlgebraCalculator,
+    ],
     arithmetic: [
+      powerModCalculator,
       {
         id: "arithmetic-sequence-calculator",
         name: "Arithmetic Sequence",

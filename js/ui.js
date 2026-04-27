@@ -1,61 +1,197 @@
-
 export function initializeUI(calculators) {
     const sidebarNav = document.getElementById("sidebar-nav");
     const calculatorDisplay = document.getElementById("calculator-display");
     const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+    const mobileSidebarOverlay = document.getElementById("mobile-sidebar-overlay");
     const sidebar = document.querySelector(".sidebar");
+    const homeBtn = document.getElementById("home-btn");
+    const searchInput = document.getElementById("calc-search");
+    const pageTitle = document.getElementById("page-title");
+    const pageSubtitle = document.getElementById("page-subtitle");
+    const themeToggleBtn = document.getElementById("theme-toggle");
+    const settingsBtn = document.getElementById("settings-btn");
+    const settingsModal = document.getElementById("settings-modal");
+    const closeModalBtn = document.getElementById("close-modal");
+    const themeCards = document.querySelectorAll(".theme-card");
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
     let currentCalculatorId = null;
     let searchCache = null;
 
+    function getCategoryEntries() {
+        return Object.entries(calculators).map(([categoryKey, category]) => {
+            const items = [];
+
+            for (const [subKey, calcList] of Object.entries(category.subcategories)) {
+                if (!Array.isArray(calcList)) {
+                    continue;
+                }
+
+                calcList.forEach((calc) => {
+                    items.push({
+                        categoryKey,
+                        categoryLabel: category.label,
+                        categoryIcon: category.icon,
+                        subKey,
+                        calc
+                    });
+                });
+            }
+
+            return {
+                key: categoryKey,
+                label: category.label,
+                icon: category.icon,
+                items
+            };
+        });
+    }
+
+    function getAllCalculators() {
+        return getCategoryEntries().flatMap((entry) => entry.items);
+    }
+
+    function getLibraryStats() {
+        const categoryEntries = getCategoryEntries();
+
+        return {
+            categoryEntries,
+            totalCalculators: categoryEntries.reduce((count, entry) => count + entry.items.length, 0),
+            totalCategories: categoryEntries.length
+        };
+    }
+
+    function updatePageMeta(title, subtitle) {
+        if (pageTitle) {
+            pageTitle.textContent = title;
+        }
+
+        if (pageSubtitle) {
+            pageSubtitle.textContent = subtitle;
+        }
+    }
+
+    function closeMobileMenu() {
+        if (!sidebar) {
+            return;
+        }
+
+        sidebar.classList.remove("active");
+
+        if (mobileSidebarOverlay) {
+            mobileSidebarOverlay.classList.remove("active");
+            mobileSidebarOverlay.hidden = true;
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.setAttribute("aria-expanded", "false");
+        }
+    }
+
+    function openMobileMenu() {
+        if (!sidebar) {
+            return;
+        }
+
+        sidebar.classList.add("active");
+
+        if (mobileSidebarOverlay) {
+            mobileSidebarOverlay.hidden = false;
+            mobileSidebarOverlay.classList.add("active");
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function toggleMobileMenu() {
+        if (!sidebar) {
+            return;
+        }
+
+        if (sidebar.classList.contains("active")) {
+            closeMobileMenu();
+            return;
+        }
+
+        openMobileMenu();
+    }
+
+    function updateActiveNav() {
+        const buttons = document.querySelectorAll(".nav-item");
+
+        buttons.forEach((btn) => {
+            const isActive = btn.dataset.calcId === currentCalculatorId;
+            btn.classList.toggle("active", isActive);
+
+            if (isActive) {
+                btn.setAttribute("aria-current", "page");
+            } else {
+                btn.removeAttribute("aria-current");
+            }
+        });
+    }
+
     function buildSearchCache() {
         const categories = document.querySelectorAll(".nav-category");
-        searchCache = Array.from(categories).map(category => ({
+        searchCache = Array.from(categories).map((category) => ({
             element: category,
-            items: Array.from(category.querySelectorAll(".nav-item")).map(item => ({
+            items: Array.from(category.querySelectorAll(".nav-item")).map((item) => ({
                 element: item,
                 text: item.textContent.toLowerCase()
             }))
         }));
     }
 
-    function loadCalculator(category, subcategory, id) {
-        // Update Active State
-        const buttons = document.querySelectorAll(".nav-item");
-        buttons.forEach(btn => btn.classList.remove("active"));
+    function restoreSearchResults() {
+        if (!searchCache) {
+            buildSearchCache();
+        }
 
-        // Find the calculator object
-        const calc = calculators[category].subcategories[subcategory].find(c => c.id === id);
-        if (!calc) return;
+        searchCache.forEach((category) => {
+            category.element.style.display = "";
+            category.items.forEach((item) => {
+                item.element.style.display = "";
+            });
+        });
+    }
 
-        // Set active class on button
-        // Since we regenerate buttons, we can't easily reference "this" from onclick unless passed.
-        // But we can search by text or keep a reference if we wanted.
-        // For simplicity, let's just loop and match text again as in original script,
-        // or improved: match by checking if the onclick handler corresponds? No.
-        // Match by text content is what the original did.
-        for (const btn of buttons) {
-            if (btn.dataset.calcId === id) {
-                btn.classList.add("active");
-                break;
-            }
+    function resetSearchFilter() {
+        if (!searchInput) {
+            return;
+        }
+
+        searchInput.value = "";
+        restoreSearchResults();
+    }
+
+    function loadCalculator(categoryKey, subKey, id, options = {}) {
+        const calcList = calculators[categoryKey]?.subcategories?.[subKey];
+        if (!calcList) {
+            return;
+        }
+
+        const calc = calcList.find((item) => item.id === id);
+        if (!calc) {
+            return;
         }
 
         currentCalculatorId = id;
-        document.title = calc.name + " - Universal Calculator";
+        updateActiveNav();
 
-        // Show Top Bar (was hidden on home page)
-        const topBar = document.querySelector(".top-bar");
-        if (topBar) topBar.classList.remove("hidden");
+        updatePageMeta(calc.name, calc.description);
+        document.title = `${calc.name} - Universal Calculator`;
 
-        // Close mobile sidebar
-        sidebar.classList.remove("active");
+        if (!options.preserveSearch) {
+            resetSearchFilter();
+        }
 
-        // Render Content
+        closeMobileMenu();
         calculatorDisplay.innerHTML = calc.generateHTML();
+        calculatorDisplay.scrollTop = 0;
 
-        // Focus on the calculator title for accessibility
-        const titleElement = calculatorDisplay.querySelector('h2.calculator-title');
+        const titleElement = calculatorDisplay.querySelector(".calculator-title");
         if (titleElement) {
             titleElement.focus();
         }
@@ -63,308 +199,403 @@ export function initializeUI(calculators) {
         calc.attachEvents();
     }
 
+    function loadCalculatorById(id, options = {}) {
+        const entry = getAllCalculators().find((item) => item.calc.id === id);
+        if (!entry) {
+            return;
+        }
+
+        loadCalculator(entry.categoryKey, entry.subKey, id, options);
+    }
+
     function renderSidebar() {
+        const { categoryEntries } = getLibraryStats();
         sidebarNav.innerHTML = "";
-        searchCache = null;
 
-        for (const [catKey, category] of Object.entries(calculators)) {
-            // Category Header
-            const catHeader = document.createElement("div");
-            catHeader.className = "nav-category";
+        categoryEntries.forEach((entry) => {
+            const category = document.createElement("section");
+            category.className = "nav-category";
+            category.dataset.category = entry.key;
 
-            const catTitle = document.createElement("div");
-            catTitle.className = "nav-category-header";
-            catTitle.innerHTML = `
-                <svg class="icon"><use href="#${category.icon}"></use></svg>
-                ${category.label}
+            const header = document.createElement("div");
+            header.className = "nav-category-header";
+            header.innerHTML = `
+                <span class="nav-category-heading">
+                    <span class="nav-category-icon">
+                        <svg class="icon"><use href="#${entry.icon}"></use></svg>
+                    </span>
+                    <span>${entry.label}</span>
+                </span>
+                <span class="nav-category-count">${entry.items.length}</span>
             `;
-            catHeader.appendChild(catTitle);
+            category.appendChild(header);
 
-            // Subcategories & Calculators
-            const subcats = category.subcategories;
-            for (const [subKey, calcList] of Object.entries(subcats)) {
-                if (!calcList || calcList.length === 0) continue;
+            entry.items.forEach((item) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "nav-item";
+                btn.textContent = item.calc.name;
+                btn.dataset.calcId = item.calc.id;
+                btn.addEventListener("click", () => loadCalculator(item.categoryKey, item.subKey, item.calc.id));
+                category.appendChild(btn);
+            });
 
-                calcList.forEach(calc => {
-                    const btn = document.createElement("button");
-                    btn.className = "nav-item";
-                    btn.textContent = calc.name;
-                    btn.dataset.calcId = calc.id;
-                    btn.onclick = () => loadCalculator(catKey, subKey, calc.id);
-                    catHeader.appendChild(btn);
-                });
-            }
+            sidebarNav.appendChild(category);
+        });
 
-            sidebarNav.appendChild(catHeader);
-        }
+        searchCache = null;
+        buildSearchCache();
+        updateActiveNav();
     }
 
-    // Mobile Menu Toggle & Draggable Logic
-    let isDraggingButton = false;
+    function renderOverview() {
+        const { categoryEntries, totalCalculators, totalCategories } = getLibraryStats();
+        currentCalculatorId = null;
+        updateActiveNav();
+        closeMobileMenu();
+        document.title = "Universal Calculator";
+        updatePageMeta(
+            "Workspace",
+            `${totalCalculators} calculators across ${totalCategories} categories.`
+        );
 
-    function makeDraggable(element) {
-        let startX, startY, startLeft, startTop;
+        const featuredLaunches = categoryEntries
+            .map((entry) => entry.items[0])
+            .filter(Boolean)
+            .slice(0, 6);
 
-        function onMouseDown(e) {
-            // Only trigger for left mouse button or touch
-            if (e.type === 'mousedown' && e.button !== 0) return;
+        const categoryCards = categoryEntries.map((entry) => `
+            <article class="category-card" data-category="${entry.key}">
+                <div class="category-card-header">
+                    <span class="category-card-icon">
+                        <svg class="icon"><use href="#${entry.icon}"></use></svg>
+                    </span>
+                    <div>
+                        <h3>${entry.label}</h3>
+                        <p>${entry.items.length} calculators</p>
+                    </div>
+                </div>
+                <div class="category-links">
+                    ${entry.items.slice(0, 4).map((item) => `
+                        <button type="button" class="overview-launch-btn" data-calc-id="${item.calc.id}">
+                            ${item.calc.name}
+                        </button>
+                    `).join("")}
+                </div>
+            </article>
+        `).join("");
 
-            isDraggingButton = false;
-            startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        calculatorDisplay.innerHTML = `
+            <section class="overview-shell">
+                <section class="overview-hero">
+                    <div class="overview-hero-copy">
+                        <div class="overview-brand-badge">
+                            <span class="overview-brand-mark">
+                                <svg class="icon"><use href="#icon-brand"></use></svg>
+                            </span>
+                            <span>Universal Calculator</span>
+                        </div>
+                        <p class="overview-kicker">Workspace</p>
+                        <h2>Precision tools for everyday quantitative work.</h2>
+                        <p>A single workspace for formulas, conversions, and reference calculations.</p>
+                    </div>
+                    <div class="overview-stat-grid">
+                        <div class="overview-stat">
+                            <span class="overview-stat-value">${totalCalculators}</span>
+                            <span class="overview-stat-label">Calculators</span>
+                        </div>
+                        <div class="overview-stat">
+                            <span class="overview-stat-value">${totalCategories}</span>
+                            <span class="overview-stat-label">Categories</span>
+                        </div>
+                        <div class="overview-stat">
+                            <span class="overview-stat-value">${featuredLaunches.length}</span>
+                            <span class="overview-stat-label">Quick Picks</span>
+                        </div>
+                    </div>
+                </section>
 
-            const rect = element.getBoundingClientRect();
-            startLeft = rect.left;
-            startTop = rect.top;
+                <section class="overview-panels">
+                    <article class="overview-panel">
+                        <div class="overview-panel-header">
+                            <h3>Quick Launch</h3>
+                            <span>${featuredLaunches.length} ready</span>
+                        </div>
+                        <div class="overview-quick-grid">
+                            ${featuredLaunches.map((item) => `
+                                <button type="button" class="overview-launch-btn" data-calc-id="${item.calc.id}">
+                                    <span>${item.calc.name}</span>
+                                    <small>${item.categoryLabel}</small>
+                                </button>
+                            `).join("")}
+                        </div>
+                    </article>
 
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-            document.addEventListener('touchmove', onMouseMove, { passive: false });
-            document.addEventListener('touchend', onMouseUp);
-        }
+                    <article class="overview-panel">
+                        <div class="overview-panel-header">
+                            <h3>Library Snapshot</h3>
+                            <span>${totalCategories} groups</span>
+                        </div>
+                        <div class="overview-chip-list">
+                            ${categoryEntries.map((entry) => `
+                                <div class="overview-chip" data-category="${entry.key}">
+                                    <span class="overview-chip-icon">
+                                        <svg class="icon"><use href="#${entry.icon}"></use></svg>
+                                    </span>
+                                    <span>${entry.label}</span>
+                                    <strong>${entry.items.length}</strong>
+                                </div>
+                            `).join("")}
+                        </div>
+                    </article>
+                </section>
 
-        function onMouseMove(e) {
-            const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                <section class="overview-category-grid">
+                    ${categoryCards}
+                </section>
+            </section>
+        `;
 
-            const dx = clientX - startX;
-            const dy = clientY - startY;
-
-            // Threshold to consider it a drag
-            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                isDraggingButton = true;
-                const rect = element.getBoundingClientRect();
-                const newLeft = Math.max(0, Math.min(window.innerWidth - rect.width, startLeft + dx));
-                const newTop = Math.max(0, Math.min(window.innerHeight - rect.height, startTop + dy));
-                element.style.left = `${newLeft}px`;
-                element.style.top = `${newTop}px`;
-                element.style.bottom = 'auto';
-                element.style.right = 'auto';
-                element.style.transform = 'none'; // Ensure no transform interferes
-            }
-        }
-
-        function onMouseUp(e) {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.removeEventListener('touchmove', onMouseMove);
-            document.removeEventListener('touchend', onMouseUp);
-
-            // Reset flag after a short delay to allow click event to process
-            setTimeout(() => { isDraggingButton = false; }, 100);
-        }
-
-        element.addEventListener('mousedown', onMouseDown);
-        element.addEventListener('touchstart', onMouseDown);
-    }
-
-    // Initialize Draggable
-    if (mobileMenuBtn) {
-        makeDraggable(mobileMenuBtn);
-
-        mobileMenuBtn.addEventListener("click", (e) => {
-            if (isDraggingButton) {
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-            }
-            sidebar.classList.toggle("active");
+        calculatorDisplay.querySelectorAll("[data-calc-id]").forEach((button) => {
+            button.addEventListener("click", () => {
+                loadCalculatorById(button.dataset.calcId);
+            });
         });
     }
 
-    // Close sidebar when clicking outside on mobile
-    document.addEventListener("click", (e) => {
-        if (window.innerWidth <= 900) {
-            // Check if click target is not sidebar and not the menu button
-            if (!sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target) && sidebar.classList.contains("active")) {
-                sidebar.classList.remove("active");
-            }
-        }
-    });
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            toggleMobileMenu();
+        });
+    }
 
-    // Search Functionality
-    const searchInput = document.getElementById("calc-search");
+    if (mobileSidebarOverlay) {
+        mobileSidebarOverlay.addEventListener("click", closeMobileMenu);
+    }
+
+    if (homeBtn) {
+        homeBtn.addEventListener("click", () => {
+            resetSearchFilter();
+            renderOverview();
+        });
+    }
+
     if (searchInput) {
         const handleSearch = debounce((query) => {
-            if (!searchCache) buildSearchCache();
+            if (!searchCache) {
+                buildSearchCache();
+            }
 
-            // Fast path: empty query restores all items
             if (!query) {
-                searchCache.forEach(category => {
-                    category.element.style.display = "";
-                    category.items.forEach(item => item.element.style.display = "");
-                });
+                restoreSearchResults();
                 return;
             }
 
-            searchCache.forEach(category => {
+            searchCache.forEach((category) => {
                 let hasVisibleItems = false;
-                category.items.forEach(item => {
+
+                category.items.forEach((item) => {
                     if (item.text.includes(query)) {
-                        item.element.style.display = "block";
+                        item.element.style.display = "";
                         hasVisibleItems = true;
                     } else {
                         item.element.style.display = "none";
                     }
                 });
 
-                // Show/hide category header based on visible items
-                category.element.style.display = hasVisibleItems ? "block" : "none";
+                category.element.style.display = hasVisibleItems ? "" : "none";
             });
-        }, 150);
+        }, 120);
 
-        searchInput.addEventListener("input", (e) => {
-            handleSearch(e.target.value.toLowerCase());
+        searchInput.addEventListener("input", (event) => {
+            handleSearch(event.target.value.trim().toLowerCase());
+        });
+
+        searchInput.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") {
+                return;
+            }
+
+            const query = event.target.value.trim().toLowerCase();
+            if (!query) {
+                return;
+            }
+
+            const allCalculators = getAllCalculators();
+            const match = allCalculators.find((item) => item.calc.name.toLowerCase().includes(query));
+            if (!match) {
+                return;
+            }
+
+            loadCalculator(match.categoryKey, match.subKey, match.calc.id, { preserveSearch: false });
         });
     }
 
-        // Theme Logic
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const closeModalBtn = document.getElementById('close-modal');
-    const themeCards = document.querySelectorAll('.theme-card');
-
-    // Helper to update the toggle icon
-    const updateThemeIcon = (isDark) => {
-        if (themeToggleBtn) {
-            const icon = themeToggleBtn.querySelector('use');
-            if (icon) icon.setAttribute('href', isDark ? '#icon-sun' : '#icon-moon');
-        }
-    };
-
-    // Initialize Theme
-    const initTheme = () => {
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        const currentVariant = localStorage.getItem('themeVariant') || 'medium';
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        // Apply stored theme or system preference
-        if (currentTheme === 'dark' || (!localStorage.getItem('theme') && prefersDark)) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            document.documentElement.setAttribute('data-variant', currentVariant);
-            updateThemeIcon(true);
-        } else {
-            document.documentElement.setAttribute('data-theme', 'light');
-            updateThemeIcon(false);
+    function updateThemeIcon(isDark) {
+        if (!themeToggleBtn) {
+            return;
         }
 
-        // Highlight active variant card
-        themeCards.forEach(card => {
-            if (card.dataset.variant === currentVariant) {
-                card.classList.add('active');
-            } else {
-                card.classList.remove('active');
-            }
+        const icon = themeToggleBtn.querySelector("use");
+        if (icon) {
+            icon.setAttribute("href", isDark ? "#icon-sun" : "#icon-moon");
+        }
+    }
+
+    function syncThemeColor() {
+        if (!themeColorMeta) {
+            return;
+        }
+
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        const variant = document.documentElement.getAttribute("data-variant") || "medium";
+        const darkThemeColors = {
+            enhanced: "#091119",
+            medium: "#10161d",
+            gentle: "#182026"
+        };
+
+        themeColorMeta.setAttribute("content", isDark ? darkThemeColors[variant] || darkThemeColors.medium : "#f4efe8");
+    }
+
+    function setActiveThemeCard(activeVariant) {
+        themeCards.forEach((card) => {
+            card.classList.toggle("active", card.dataset.variant === activeVariant);
         });
-    };
+    }
 
-    // Toggle Theme (Light <-> Dark)
+    function closeSettingsModal() {
+        if (settingsModal) {
+            settingsModal.classList.remove("active");
+        }
+    }
+
+    function applyThemeVariant(variant) {
+        localStorage.setItem("themeVariant", variant);
+        document.documentElement.setAttribute("data-variant", variant);
+        setActiveThemeCard(variant);
+
+        if (document.documentElement.getAttribute("data-theme") !== "dark") {
+            document.documentElement.setAttribute("data-theme", "dark");
+            localStorage.setItem("theme", "dark");
+            updateThemeIcon(true);
+        }
+
+        syncThemeColor();
+    }
+
+    function initTheme() {
+        const storedTheme = localStorage.getItem("theme");
+        const storedVariant = localStorage.getItem("themeVariant") || "medium";
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const isDark = storedTheme === "dark" || (!storedTheme && prefersDark);
+
+        document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+
+        if (isDark) {
+            document.documentElement.setAttribute("data-variant", storedVariant);
+        } else {
+            document.documentElement.removeAttribute("data-variant");
+        }
+
+        updateThemeIcon(isDark);
+        setActiveThemeCard(storedVariant);
+        syncThemeColor();
+    }
+
     if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const isDark = currentTheme === 'dark';
+        themeToggleBtn.addEventListener("click", () => {
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
 
             if (isDark) {
-                // Switch to Light
-                document.documentElement.setAttribute('data-theme', 'light');
-                localStorage.setItem('theme', 'light');
+                document.documentElement.setAttribute("data-theme", "light");
+                document.documentElement.removeAttribute("data-variant");
+                localStorage.setItem("theme", "light");
                 updateThemeIcon(false);
             } else {
-                // Switch to Dark (restore variant)
-                const variant = localStorage.getItem('themeVariant') || 'medium';
-                document.documentElement.setAttribute('data-theme', 'dark');
-                document.documentElement.setAttribute('data-variant', variant);
-                localStorage.setItem('theme', 'dark');
+                const variant = localStorage.getItem("themeVariant") || "medium";
+                document.documentElement.setAttribute("data-theme", "dark");
+                document.documentElement.setAttribute("data-variant", variant);
+                localStorage.setItem("theme", "dark");
                 updateThemeIcon(true);
             }
+
+            syncThemeColor();
         });
     }
 
-    // Settings Modal Logic
-    if (settingsBtn && settingsModal) {
-        settingsBtn.addEventListener('click', () => {
-            settingsModal.classList.add('active');
-        });
-
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', () => {
-                settingsModal.classList.remove('active');
-            });
-        }
-
-        settingsModal.addEventListener('click', (e) => {
-            if (e.target === settingsModal) {
-                settingsModal.classList.remove('active');
+    if (settingsBtn) {
+        settingsBtn.addEventListener("click", () => {
+            if (settingsModal) {
+                settingsModal.classList.add("active");
             }
         });
+    }
 
-        // Theme Selection
-        themeCards.forEach(card => {
-            card.addEventListener('click', () => {
-                const variant = card.dataset.variant;
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener("click", closeSettingsModal);
+    }
 
-                // Update UI active state
-                themeCards.forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-
-                // Save Variant
-                localStorage.setItem('themeVariant', variant);
-
-                // Apply immediately
-                document.documentElement.setAttribute('data-variant', variant);
-
-                // If not in dark mode, switch to it
-                if (document.documentElement.getAttribute('data-theme') !== 'dark') {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                    localStorage.setItem('theme', 'dark');
-                    updateThemeIcon(true);
-                }
-            });
+    if (settingsModal) {
+        settingsModal.addEventListener("click", (event) => {
+            if (event.target === settingsModal) {
+                closeSettingsModal();
+            }
         });
     }
 
-    // Run initialization
-    initTheme();
+    themeCards.forEach((card) => {
+        const activate = () => applyThemeVariant(card.dataset.variant);
+        card.addEventListener("click", activate);
+        card.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                activate();
+            }
+        });
+    });
 
-// Initial Render call
-    renderSidebar();
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeSettingsModal();
+            closeMobileMenu();
+            return;
+        }
 
-    // Top bar is now visible by default to show the search bar
-    const topBar = document.querySelector(".top-bar");
-    if (topBar) {
-        topBar.classList.remove("hidden");
-    }
-
-    // Global Enter Key Support
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            // Check if focus is on an input or select (but not the search bar)
-            if ((e.target.tagName === "INPUT" || e.target.tagName === "SELECT") && e.target.id !== "calc-search") {
-                // Find the calculate button within the active calculator display
-                const calcBtn = document.querySelector("#calculator-display .calculate-btn");
-                if (calcBtn) {
-                    calcBtn.click();
-                    e.preventDefault();
-                }
+        if (
+            event.key === "Enter" &&
+            (event.target.tagName === "INPUT" || event.target.tagName === "SELECT") &&
+            event.target.id !== "calc-search"
+        ) {
+            const calcBtn = document.querySelector("#calculator-display .calculate-btn");
+            if (calcBtn) {
+                calcBtn.click();
+                event.preventDefault();
             }
         }
     });
+
+    window.addEventListener("resize", () => {
+        if (window.innerWidth > 980) {
+            closeMobileMenu();
+        }
+    });
+
+    initTheme();
+    renderSidebar();
+    renderOverview();
 }
 
-/**
- * Debounce function to limit the frequency of function calls.
- * @param {Function} func - The function to debounce.
- * @param {number} wait - The delay in milliseconds.
- * @returns {Function} - The debounced function.
- */
 function debounce(func, wait) {
     let timeout;
+
     return function executedFunction(...args) {
         const later = () => {
             clearTimeout(timeout);
             func(...args);
         };
+
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };

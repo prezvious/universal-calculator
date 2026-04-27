@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateTimePercentage, combinations, calculateLotteryOdds } from './mathUtils.js';
+import {
+  calculatePowerMod,
+  calculateTimePercentage,
+  combinations,
+  gcdBigInt,
+  getPowerModReductionInfo,
+  modularInverse,
+  calculateLotteryOdds
+} from './mathUtils.js';
 
 // --- calculateTimePercentage Tests ---
 
@@ -98,4 +106,55 @@ test('calculateLotteryOdds - impossible', () => {
 test('calculateLotteryOdds - pool smaller than draw', () => {
     const prob = calculateLotteryOdds(10, 5, 5); // Pool 5, Draw 10.
     assert.strictEqual(prob, 0);
+});
+
+// --- Power Mod Tests ---
+
+test('calculatePowerMod - positive exponent', () => {
+    const result = calculatePowerMod(7, 128, 13);
+    assert.strictEqual(result.result, 3n);
+    assert.strictEqual(result.binaryExponent, '10000000');
+});
+
+test('calculatePowerMod - zero exponent', () => {
+    const result = calculatePowerMod(25, 0, 7);
+    assert.strictEqual(result.result, 1n);
+});
+
+test('calculatePowerMod - negative base uses standard residue', () => {
+    const result = calculatePowerMod(-3, 5, 11);
+    assert.strictEqual(result.result, 10n);
+});
+
+test('calculatePowerMod - modulus one returns zero', () => {
+    const result = calculatePowerMod(25, 0, 1);
+    assert.strictEqual(result.result, 0n);
+});
+
+test('calculatePowerMod - negative exponent with inverse', () => {
+    const result = calculatePowerMod(3, -1, 11, { allowNegativeExponent: true });
+    assert.strictEqual(result.inverse, 4n);
+    assert.strictEqual(result.result, 4n);
+});
+
+test('calculatePowerMod - rejects negative exponent without inverse', () => {
+    assert.throws(() => calculatePowerMod(2, -1, 4, { allowNegativeExponent: true }), {
+        message: 'Modular inverse exists only when gcd(a, m) = 1'
+    });
+});
+
+test('gcdBigInt and modularInverse', () => {
+    assert.strictEqual(gcdBigInt(84, 30), 6n);
+    assert.strictEqual(modularInverse(10, 17), 12n);
+});
+
+test('getPowerModReductionInfo - Fermat and Euler eligibility', () => {
+    const fermat = getPowerModReductionInfo(2, 100, 13);
+    assert.strictEqual(fermat.theorem, 'Fermat');
+    assert.strictEqual(fermat.reducedExponent, 4n);
+
+    const euler = getPowerModReductionInfo(5, 100, 12);
+    assert.strictEqual(euler.theorem, 'Euler');
+    assert.strictEqual(euler.phi, 4n);
+    assert.strictEqual(euler.reducedExponent, 0n);
 });

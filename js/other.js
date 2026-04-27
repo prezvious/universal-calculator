@@ -1,4 +1,4 @@
-import { createCalculatorLayout, animateReveal } from './utils.js';
+import { createCalculatorLayout, animateReveal, createIconLabel } from './utils.js';
 
 export const otherCalculators = {
     icon: "icon-calc",
@@ -341,8 +341,8 @@ export const otherCalculators = {
             </div>
 
             <div style="display: flex; gap: 0.5rem; margin: 1rem 0;">
-                <button id="pw-copy" class="calculate-btn" style="flex: 1; margin-top: 0; font-size: 0.9rem; padding: 0.7rem;" disabled>📋 Copy</button>
-                <button id="pw-regenerate" class="calculate-btn" style="flex: 1; margin-top: 0; font-size: 0.9rem; padding: 0.7rem;" disabled>🔄 Regenerate</button>
+                <button id="pw-copy" class="calculate-btn" style="flex: 1; margin-top: 0; font-size: 0.9rem; padding: 0.7rem;" disabled>${createIconLabel("icon-copy", "Copy", "button-icon-label")}</button>
+                <button id="pw-regenerate" class="calculate-btn" style="flex: 1; margin-top: 0; font-size: 0.9rem; padding: 0.7rem;" disabled>${createIconLabel("icon-refresh", "Regenerate", "button-icon-label")}</button>
             </div>
 
             <hr style="border: none; border-top: 1px solid var(--border-color); margin: 1.25rem 0;">
@@ -362,7 +362,7 @@ export const otherCalculators = {
                 <label class="pw-checkbox-label"><input type="checkbox" id="pw-no-repeat"><span class="pw-check-mark"></span> No Repeated Characters</label>
             </div>
 
-            <button id="pw-generate" class="calculate-btn">⚡ Generate Password</button>
+            <button id="pw-generate" class="calculate-btn">${createIconLabel("icon-generate", "Generate Password", "button-icon-label")}</button>
           `;
                     return createCalculatorLayout(
                         this.name,
@@ -537,10 +537,13 @@ export const otherCalculators = {
 
                     copyBtn.addEventListener("click", () => {
                         if (!currentPassword) return;
+                        const original = copyBtn.innerHTML;
                         navigator.clipboard.writeText(currentPassword).then(() => {
-                            const original = copyBtn.textContent;
-                            copyBtn.textContent = "✅ Copied!";
-                            setTimeout(() => { copyBtn.textContent = original; }, 1500);
+                            copyBtn.innerHTML = createIconLabel("icon-success", "Copied!", "button-icon-label");
+                            setTimeout(() => { copyBtn.innerHTML = original; }, 1500);
+                        }).catch(() => {
+                            copyBtn.innerHTML = createIconLabel("icon-close", "Copy blocked", "button-icon-label");
+                            setTimeout(() => { copyBtn.innerHTML = original; }, 1500);
                         });
                     });
                 }

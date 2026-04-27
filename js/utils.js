@@ -7,35 +7,57 @@
  * @param {boolean} hasEducationalContent - Whether to show the "What is this?" button.
  * @returns {string} The complete HTML string.
  */
+export function createIconLabel(iconId, label, className = "icon-label") {
+    return `
+        <span class="${className}" data-icon="${iconId}">
+            <svg class="icon" aria-hidden="true">
+                <use href="#${iconId}"></use>
+            </svg>
+            <span>${label}</span>
+        </span>
+    `;
+}
+
+export function createIconHeading(level, iconId, label) {
+    return `<${level} class="icon-heading">${createIconLabel(iconId, label, "icon-chip")}</${level}>`;
+}
+
 export function createCalculatorLayout(title, description, inputsHTML, resultId, hasEducationalContent = false) {
-    let educationalButton = '';
-    if (hasEducationalContent) {
-        educationalButton = `
-            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
-                <button id="what-is-this-btn" class="what-is-this-btn">
+    const educationalButton = hasEducationalContent
+        ? `
+            <div class="calculator-actions">
+                <button id="what-is-this-btn" class="what-is-this-btn" type="button">
                     What is this?
                 </button>
             </div>
-        `;
-    }
-    // Add educational text for the Temperature Converter
+        `
+        : '';
+
     return `
-        <h2 class="calculator-title" tabindex="-1" style="margin-bottom: 1rem;">${title}</h2>
+        <section class="calculator-header">
+            <div class="calculator-heading">
+                <p class="calculator-kicker">Calculator</p>
+                <h3 class="calculator-title" tabindex="-1">${title}</h3>
+                <p class="calculator-description">${description}</p>
+            </div>
+            ${educationalButton}
+        </section>
         <div class="calculator-wrapper">
-            <div class="calculator-inputs">
+            <section class="calculator-inputs">
                 <div class="calculator-form">
                     ${inputsHTML}
                 </div>
-            </div>
-            <div class="calculator-results">
-                <h3>Result</h3>
-                <div id="${resultId}" class="result-content">
-                    <span style="opacity: 0.5; font-size: 1rem;">Enter values and click Calculate</span>
+            </section>
+            <aside class="calculator-results">
+                <div class="calculator-results-header">
+                    <span class="result-label">Result</span>
                 </div>
-                ${educationalButton}
-                <div id="educational-content-container" class="educational-content-container" style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;"></div>
-            </div>
+                <div id="${resultId}" class="result-content">
+                    <span class="result-placeholder">Enter values to populate the result.</span>
+                </div>
+            </aside>
         </div>
+        <section id="educational-content-container" class="educational-content-container" style="display: none;"></section>
     `;
 }
 
@@ -77,7 +99,7 @@ export async function animateReveal(htmlContent, container) {
     }
 
     container.style.display = 'block';
-    container.innerHTML = ''; // Clear previous content
+    container.innerHTML = '';
 
     // Create a temporary container to parse the HTML
     const tempDiv = document.createElement('div');
@@ -92,8 +114,8 @@ export async function animateReveal(htmlContent, container) {
         // Prepare element for animation
         if (clone.nodeType === Node.ELEMENT_NODE) {
             clone.style.opacity = '0';
-            clone.style.transform = 'translateY(10px)';
-            clone.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            clone.style.transform = 'translateY(8px)';
+            clone.style.transition = 'opacity 0.28s cubic-bezier(0.2, 0, 0, 1), transform 0.28s cubic-bezier(0.2, 0, 0, 1)';
         }
 
         container.appendChild(clone);
@@ -108,7 +130,7 @@ export async function animateReveal(htmlContent, container) {
             clone.style.transform = 'translateY(0)';
 
             // Fast delay between elements (e.g. 50ms)
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 80));
         } else {
             // Text nodes appear instantly
         }

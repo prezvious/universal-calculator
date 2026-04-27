@@ -1,4 +1,4 @@
-const CACHE_NAME = 'universal-calc-v1';
+const CACHE_NAME = 'universal-calc-v4';
 
 const PRECACHE_URLS = [
     './',
@@ -9,10 +9,15 @@ const PRECACHE_URLS = [
     './js/utils.js',
     './js/math.js',
     './js/mathUtils.js',
+    './js/linearAlgebraCalculator.js',
+    './js/linearAlgebraUtils.js',
+    './js/chemistryUtils.js',
     './js/physics.js',
     './js/chemistry.js',
     './js/statistics.js',
     './js/converters.js',
+    'https://cdn.jsdelivr.net/npm/mathjs@15.2.0/lib/browser/math.js',
+    'https://cdn.jsdelivr.net/npm/ml-matrix@6.12.2/matrix.umd.js',
     'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js'
 ];
 

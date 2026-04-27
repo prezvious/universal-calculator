@@ -1,4 +1,4 @@
-import { createCalculatorLayout, animateReveal } from './utils.js';
+import { createCalculatorLayout, animateReveal, createIconHeading } from './utils.js';
 
 export const convertersCalculators = {
     icon: "icon-converter",
@@ -11,13 +11,13 @@ export const convertersCalculators = {
                 description: "Convert between various metric and imperial length units.",
                 educationalHTML: `
             <div class="qa-section" style="font-size: 0.9rem; color: var(--text-secondary);">
-               <h4 style="color: var(--text-main); margin-bottom: 0.75rem;">📏 Understanding Length Measurement</h4>
+               ${createIconHeading("h4", "icon-ruler", "Understanding Length Measurement")}
                <p style="margin-bottom: 1rem; line-height: 1.7;">
                    Length is one of the most fundamental physical quantities. Two major systems of measurement coexist worldwide:
                    the <strong>Metric System</strong> (SI), used by most countries, and the <strong>Imperial System</strong>, used primarily in the United States, Liberia, and Myanmar.
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🔬 The Metric System (SI Units)</h4>
+               ${createIconHeading("h4", "icon-flask", "The Metric System (SI Units)")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    The metric system is based on powers of 10, making conversions straightforward. The <strong>meter</strong> is the base unit, officially defined as the distance light travels in a vacuum in \\( \\frac{1}{299{,}792{,}458} \\) of a second.
                </p>
@@ -29,7 +29,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">1 Micrometer (µm) = <strong>1,000</strong> Nanometers (nm)</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🇬🇧 The Imperial System</h4>
+               ${createIconHeading("h4", "icon-chart", "The Imperial System")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    The imperial system evolved from older English units. Unlike the metric system, conversion factors are not uniform, which is why a converter tool like this is essential.
                </p>
@@ -39,7 +39,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">1 Foot = <strong>12</strong> Inches</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🔄 Key Cross-System Conversions</h4>
+               ${createIconHeading("h4", "icon-convert", "Key Cross-System Conversions")}
                <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
                    <li style="margin-bottom: 0.3rem;">1 Inch = <strong>2.54</strong> Centimeters (exact)</li>
                    <li style="margin-bottom: 0.3rem;">1 Foot = <strong>0.3048</strong> Meters (exact)</li>
@@ -48,7 +48,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">1 Meter ≈ <strong>3.281</strong> Feet ≈ <strong>39.37</strong> Inches</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🌌 Astronomical Distances</h4>
+               ${createIconHeading("h4", "icon-space", "Astronomical Distances")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    A <strong>light year</strong> is the distance light travels in one year in a vacuum — approximately <strong>9.461 × 10¹⁵ meters</strong> (about 5.879 trillion miles). It is used to express distances between stars and galaxies.
                </p>
@@ -57,7 +57,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;"><em>The Milky Way galaxy is about <strong>100,000</strong> light years across.</em></li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">💡 Practical Examples</h4>
+               ${createIconHeading("h4", "icon-lightbulb", "Practical Examples")}
                <ul style="list-style: none; padding: 0;">
                    <li style="margin-bottom: 0.4rem;"><strong>Q: How tall is a 6-foot person in cm?</strong><br>6 × 30.48 = <strong>182.88 cm</strong></li>
                    <li style="margin-bottom: 0.4rem;"><strong>Q: How far is a 5K run in miles?</strong><br>5 ÷ 1.609 ≈ <strong>3.107 miles</strong></li>
@@ -101,7 +101,7 @@ export const convertersCalculators = {
 
                     <div class="converter-swap-section">
                         <button id="length-switch-btn" class="converter-swap-btn" title="Swap Units">
-                            &#8646;
+                            <svg class="icon" aria-hidden="true"><use href="#icon-convert"></use></svg>
                         </button>
                     </div>
 
@@ -290,12 +290,12 @@ export const convertersCalculators = {
                 description: "Convert between various metric and imperial area units.",
                 educationalHTML: `
             <div class="qa-section" style="font-size: 0.9rem; color: var(--text-secondary);">
-               <h4 style="color: var(--text-main); margin-bottom: 0.75rem;">📐 Understanding Area Measurement</h4>
+               ${createIconHeading("h4", "icon-area", "Understanding Area Measurement")}
                <p style="margin-bottom: 1rem; line-height: 1.7;">
                    Area measures the size of a two-dimensional surface. Since area is derived from length, area units are the <strong>square</strong> of their corresponding length units. This means conversion factors are squared too — e.g., since 1 m = 100 cm, then \\( 1 \\, \\text{m}^2 = 10{,}000 \\, \\text{cm}^2 \\).
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🔬 Metric Area Units (SI)</h4>
+               ${createIconHeading("h4", "icon-flask", "Metric Area Units (SI)")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    The base SI unit of area is the <strong>square meter</strong> (m²). Larger areas use hectares or square kilometers, while tiny areas use square millimeters or smaller.
                </p>
@@ -307,7 +307,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">1 cm² = <strong>100</strong> mm²</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🇬🇧 Imperial & US Customary Area Units</h4>
+               ${createIconHeading("h4", "icon-chart", "Imperial & US Customary Area Units")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    The imperial system uses square feet, square yards, acres, and square miles. The <strong>acre</strong> is the most common land measurement unit in the US and UK.
                </p>
@@ -318,7 +318,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">1 Square Foot (ft²) = <strong>144</strong> in²</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🔄 Key Cross-System Conversions</h4>
+               ${createIconHeading("h4", "icon-convert", "Key Cross-System Conversions")}
                <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
                    <li style="margin-bottom: 0.3rem;">1 Square Inch = <strong>6.4516</strong> cm² (exact)</li>
                    <li style="margin-bottom: 0.3rem;">1 Square Foot = <strong>0.0929</strong> m²</li>
@@ -327,12 +327,12 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">1 Square Mile ≈ <strong>2.59</strong> km²</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🏟️ Are vs Acre</h4>
+               ${createIconHeading("h4", "icon-chart", "Are vs Acre")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    Despite similar names, an <strong>are</strong> and an <strong>acre</strong> are very different. One are equals \\( 100 \\, \\text{m}^2 \\) (a 10m × 10m square), while one acre equals approximately \\( 4{,}047 \\, \\text{m}^2 \\) — about <strong>40.47 times</strong> larger.
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">💡 Practical Examples</h4>
+               ${createIconHeading("h4", "icon-lightbulb", "Practical Examples")}
                <ul style="list-style: none; padding: 0;">
                    <li style="margin-bottom: 0.4rem;"><strong>Q: How big is a soccer field in acres?</strong><br>A standard soccer field is ~7,140 m² ≈ <strong>1.76 acres</strong></li>
                    <li style="margin-bottom: 0.4rem;"><strong>Q: A 2,000 sq ft apartment in m²?</strong><br>2,000 × 0.0929 ≈ <strong>185.8 m²</strong></li>
@@ -387,7 +387,7 @@ export const convertersCalculators = {
 
                             <div class="converter-swap-section">
                                 <button id="area-switch-btn" class="converter-swap-btn" title="Swap Units">
-                                    &#8646;
+                                    <svg class="icon" aria-hidden="true"><use href="#icon-convert"></use></svg>
                                 </button>
                             </div>
 
@@ -564,32 +564,32 @@ export const convertersCalculators = {
                 description: "Convert between Celsius, Fahrenheit, Kelvin, and Rankine.",
                 educationalHTML: `
             <div class="qa-section" style="font-size: 0.9rem; color: var(--text-secondary);">
-               <h4 style="color: var(--text-main); margin-bottom: 0.75rem;">🌡️ Understanding Temperature Scales</h4>
+               ${createIconHeading("h4", "icon-thermometer", "Understanding Temperature Scales")}
                <p style="margin-bottom: 1rem; line-height: 1.7;">
                    Temperature measures the average kinetic energy of particles in a substance. Unlike length or area, temperature conversions involve <strong>offsets</strong> (not just multiplication), because each scale has a different zero point.
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🔬 Celsius (°C) — Metric/SI</h4>
+               ${createIconHeading("h4", "icon-flask", "Celsius (°C) — Metric/SI")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    Devised by Anders Celsius in 1742. Based on the properties of water: <strong>0 °C</strong> = freezing point, <strong>100 °C</strong> = boiling point (at standard atmospheric pressure). Used by most countries worldwide.
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🇺🇸 Fahrenheit (°F) — Imperial</h4>
+               ${createIconHeading("h4", "icon-chart", "Fahrenheit (°F) — Imperial")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
                    Proposed by Daniel Fahrenheit in 1724. Water freezes at <strong>32 °F</strong> and boils at <strong>212 °F</strong>. Primarily used in the United States for weather and cooking.
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">⚛️ Kelvin (K) — Absolute/Scientific</h4>
+               ${createIconHeading("h4", "icon-flask", "Kelvin (K) — Absolute/Scientific")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
-                   The SI base unit of temperature. Starts at <strong>absolute zero</strong> (0 K = −273.15 °C), the lowest physically possible temperature where all molecular motion ceases. Same degree size as Celsius: \\( K = °C + 273.15 \\).
+                   The SI base unit of temperature. Starts at <strong>absolute zero</strong> (0 K = −273.15 °C), the lowest physically possible temperature where all molecular motion ceases. Same degree size as Celsius: \\( K = {^\\circ}\\text{C} + 273.15 \\).
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">📊 Rankine (°R) — Absolute/Imperial</h4>
+               ${createIconHeading("h4", "icon-chart", "Rankine (°R) — Absolute/Imperial")}
                <p style="margin-bottom: 0.5rem; line-height: 1.7;">
-                   Like Kelvin but using Fahrenheit-sized degrees. Starts at absolute zero (0 °R). Used in some engineering contexts: \\( °R = °F + 459.67 \\).
+                   Like Kelvin but using Fahrenheit-sized degrees. Starts at absolute zero (0 °R). Used in some engineering contexts: \\( {^\\circ}\\text{R} = {^\\circ}\\text{F} + 459.67 \\).
                </p>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">🔄 Key Conversion Formulas</h4>
+               ${createIconHeading("h4", "icon-convert", "Key Conversion Formulas")}
                <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
                    <li style="margin-bottom: 0.3rem;">°F = °C × <strong>9/5</strong> + 32</li>
                    <li style="margin-bottom: 0.3rem;">°C = (°F − 32) × <strong>5/9</strong></li>
@@ -597,7 +597,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;">°R = °F + <strong>459.67</strong></li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">⚡ Notable Temperatures</h4>
+               ${createIconHeading("h4", "icon-chart", "Notable Temperatures")}
                <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
                    <li style="margin-bottom: 0.3rem;"><strong>Absolute Zero:</strong> 0 K = −273.15 °C = −459.67 °F</li>
                    <li style="margin-bottom: 0.3rem;"><strong>−40° Crossover:</strong> −40 °C = −40 °F (the only point where both scales meet!)</li>
@@ -605,7 +605,7 @@ export const convertersCalculators = {
                    <li style="margin-bottom: 0.3rem;"><strong>Room Temperature:</strong> ~20–22 °C = ~68–72 °F</li>
                </ul>
 
-               <h4 style="color: var(--text-main); margin-bottom: 0.5rem;">💡 Practical Examples</h4>
+               ${createIconHeading("h4", "icon-lightbulb", "Practical Examples")}
                <ul style="list-style: none; padding: 0;">
                    <li style="margin-bottom: 0.4rem;"><strong>Q: How hot is 350 °F (oven) in °C?</strong><br>(350 − 32) × 5/9 ≈ <strong>176.7 °C</strong></li>
                    <li style="margin-bottom: 0.4rem;"><strong>Q: Is 38 °C a fever?</strong><br>38 °C = 100.4 °F — yes, anything above 37.5 °C / 99.5 °F is considered a fever.</li>
@@ -642,7 +642,7 @@ export const convertersCalculators = {
 
                             <div class="converter-swap-section">
                                 <button id="temp-switch-btn" class="converter-swap-btn" title="Swap Units">
-                                    &#8646;
+                                    <svg class="icon" aria-hidden="true"><use href="#icon-convert"></use></svg>
                                 </button>
                             </div>
 

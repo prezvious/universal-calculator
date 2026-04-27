@@ -1,4 +1,15 @@
-import { createCalculatorLayout, animateReveal } from './utils.js';
+import { createCalculatorLayout, animateReveal, createIconLabel } from './utils.js';
+import {
+    DEFAULT_DEBYE_HUCKEL_CONSTANTS,
+    calculateActivityCoefficientFromActivity,
+    calculateActivityFromCoefficient,
+    calculateDebyeHuckelLimiting,
+    calculateExtendedDebyeHuckel,
+    calculateIonicStrength,
+    calculateMeanIonicActivityCoefficient,
+    calculateMolalityActivity,
+    calculateMoleFractionActivity
+} from './chemistryUtils.js';
 
 const elements = [
     null, // 0 index filler,
@@ -121,6 +132,680 @@ const elements = [
     { name: "Tennessine", symbol: "Ts", mass: 294 },
     { name: "Oganesson", symbol: "Og", mass: 294 }
 ];
+
+const activityCoefficientCalculator = {
+    id: "activity-coefficient-calculator",
+    name: "Activity Coefficient Calculator",
+    description: "Calculate activity, activity coefficients, ionic strength, and Debye-Huckel estimates with explicit model choices.",
+    educationalHTML: `
+        <div class="educational-section">
+            <h3>Activity Coefficient</h3>
+            <p>The activity coefficient connects concentration to thermodynamic activity. Concentration describes how much substance is present; activity describes how strongly it behaves in the solution.</p>
+            \\[
+                a_i = \\gamma_i c_i
+            \\]
+            <p>If \\(\\gamma_i=1\\), the solution behaves ideally on the chosen concentration scale. If \\(\\gamma_i\\ne 1\\), interactions in the solution make the effective activity differ from the concentration term.</p>
+
+            <h4>Molality and Mole Fraction Forms</h4>
+            \\[
+                a_i = \\frac{m_i\\gamma_i}{m^\\circ}
+            \\]
+            \\[
+                a_i = x_i f_i
+            \\]
+
+            <h4>Ionic Strength</h4>
+            <p>Electrolyte activity coefficients depend strongly on ionic strength because charge affects ion interactions.</p>
+            \\[
+                I = \\frac{1}{2}\\sum_i m_i z_i^2
+            \\]
+
+            <h4>Debye-Huckel Limiting Law</h4>
+            \\[
+                \\log_{10}\\gamma_i = -A z_i^2 \\sqrt I
+            \\]
+            <p>This model is best for very dilute electrolyte solutions.</p>
+
+            <h4>Extended Debye-Huckel</h4>
+            \\[
+                -\\log_{10}\\gamma_i =
+                \\frac{A z_i^2\\sqrt I}{1 + B a_i\\sqrt I}
+            \\]
+            <p>In the extended equation, \\(a_i\\) is the effective ion-size parameter, not the activity.</p>
+
+            <h4>Mean Ionic Activity Coefficient</h4>
+            \\[
+                \\gamma_{\\pm} =
+                \\left(\\gamma_+^{\\nu_+}\\gamma_-^{\\nu_-}\\right)^{\\frac{1}{\\nu_+ + \\nu_-}}
+            \\]
+            <p>Mean ionic coefficients are used because individual single-ion activity coefficients cannot be measured directly in a simple experimental way.</p>
+        </div>
+    `,
+    generateHTML: function () {
+        const modeOptions = [
+            ["activity", "Activity from coefficient"],
+            ["coefficient", "Activity coefficient from activity"],
+            ["molality", "Molality-based activity"],
+            ["mole-fraction", "Mole-fraction activity"],
+            ["ionic-strength", "Ionic strength"],
+            ["debye", "Debye-Huckel limiting law"],
+            ["extended-debye", "Extended Debye-Huckel"],
+            ["mean-ionic", "Mean ionic activity coefficient"]
+        ].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+
+        const inputs = `
+            <div class="form-group">
+                <label for="activity-mode">Calculation mode</label>
+                <select id="activity-mode">${modeOptions}</select>
+            </div>
+
+            <div class="activity-options-grid">
+                <div class="form-group">
+                    <label for="activity-scale">Concentration scale</label>
+                    <select id="activity-scale">
+                        <option value="molality">Molality</option>
+                        <option value="molarity">Molarity</option>
+                        <option value="mole fraction">Mole fraction</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="activity-temperature">Temperature (K)</label>
+                    <input type="number" id="activity-temperature" value="298.15" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-solvent">Solvent</label>
+                    <input type="text" id="activity-solvent" value="Water">
+                </div>
+                <div class="form-group">
+                    <label for="activity-standard-state">Standard state</label>
+                    <select id="activity-standard-state">
+                        <option value="molality 1 mol/kg">Molality standard, 1 mol/kg</option>
+                        <option value="mole-fraction standard">Mole-fraction standard</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="activity-precision">Output precision</label>
+                    <select id="activity-precision">
+                        <option value="2">2 significant figures</option>
+                        <option value="3">3 significant figures</option>
+                        <option value="4" selected>4 significant figures</option>
+                        <option value="6">6 significant figures</option>
+                    </select>
+                </div>
+                <label class="calc-checkbox">
+                    <input type="checkbox" id="activity-show-steps" checked>
+                    <span>Show derivation steps</span>
+                </label>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="activity">
+                <div class="form-group">
+                    <label for="activity-concentration">Concentration term c_i</label>
+                    <input type="number" id="activity-concentration" placeholder="e.g. 0.01" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-gamma">Activity coefficient gamma_i</label>
+                    <input type="number" id="activity-gamma" placeholder="e.g. 0.89" step="any">
+                </div>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="coefficient" style="display: none;">
+                <div class="form-group">
+                    <label for="activity-known-activity">Activity a_i</label>
+                    <input type="number" id="activity-known-activity" placeholder="e.g. 0.0089" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-known-concentration">Concentration term c_i</label>
+                    <input type="number" id="activity-known-concentration" placeholder="e.g. 0.01" step="any">
+                </div>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="molality" style="display: none;">
+                <div class="form-group">
+                    <label for="activity-molality">Molality m_i (mol/kg)</label>
+                    <input type="number" id="activity-molality" placeholder="e.g. 0.10" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-molality-gamma">Molality-based coefficient gamma_i</label>
+                    <input type="number" id="activity-molality-gamma" placeholder="e.g. 0.85" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-standard-molality">Standard molality m degrees (mol/kg)</label>
+                    <input type="number" id="activity-standard-molality" value="1" step="any">
+                </div>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="mole-fraction" style="display: none;">
+                <div class="form-group">
+                    <label for="activity-mole-fraction">Mole fraction x_i</label>
+                    <input type="number" id="activity-mole-fraction" placeholder="e.g. 0.20" min="0" max="1" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-f-coefficient">Mole-fraction coefficient f_i</label>
+                    <input type="number" id="activity-f-coefficient" placeholder="e.g. 1.1" step="any">
+                </div>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="ionic-strength" style="display: none;">
+                <p class="calc-note">Ionic strength is calculated from the ion table below using molality.</p>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="debye" style="display: none;">
+                <div class="form-group">
+                    <label for="activity-dh-i-source">Ionic strength source</label>
+                    <select id="activity-dh-i-source">
+                        <option value="manual">Enter ionic strength manually</option>
+                        <option value="table">Calculate from ion table</option>
+                    </select>
+                </div>
+                <div class="form-group" id="activity-dh-manual-group">
+                    <label for="activity-dh-ionic-strength">Ionic strength I</label>
+                    <input type="number" id="activity-dh-ionic-strength" placeholder="e.g. 0.01" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-dh-charge">Target ion charge z_i</label>
+                    <input type="number" id="activity-dh-charge" placeholder="e.g. 1" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-dh-a">Debye-Huckel constant A</label>
+                    <input type="number" id="activity-dh-a" value="${DEFAULT_DEBYE_HUCKEL_CONSTANTS.A}" step="any">
+                </div>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="extended-debye" style="display: none;">
+                <div class="form-group">
+                    <label for="activity-ext-i-source">Ionic strength source</label>
+                    <select id="activity-ext-i-source">
+                        <option value="manual">Enter ionic strength manually</option>
+                        <option value="table">Calculate from ion table</option>
+                    </select>
+                </div>
+                <div class="form-group" id="activity-ext-manual-group">
+                    <label for="activity-ext-ionic-strength">Ionic strength I</label>
+                    <input type="number" id="activity-ext-ionic-strength" placeholder="e.g. 0.01" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-ext-charge">Target ion charge z_i</label>
+                    <input type="number" id="activity-ext-charge" placeholder="e.g. 1" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-ext-a">Debye-Huckel constant A</label>
+                    <input type="number" id="activity-ext-a" value="${DEFAULT_DEBYE_HUCKEL_CONSTANTS.A}" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-ext-b">Debye-Huckel constant B</label>
+                    <input type="number" id="activity-ext-b" value="${DEFAULT_DEBYE_HUCKEL_CONSTANTS.B}" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-ext-size">Effective ion-size parameter</label>
+                    <input type="number" id="activity-ext-size" placeholder="e.g. 3" step="any">
+                </div>
+            </div>
+
+            <div class="activity-mode-panel" data-mode="mean-ionic" style="display: none;">
+                <div class="form-group">
+                    <label for="activity-gamma-cation">Cation coefficient gamma_+</label>
+                    <input type="number" id="activity-gamma-cation" placeholder="e.g. 0.78" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-gamma-anion">Anion coefficient gamma_-</label>
+                    <input type="number" id="activity-gamma-anion" placeholder="e.g. 0.76" step="any">
+                </div>
+                <div class="form-group">
+                    <label for="activity-nu-cation">Cation stoichiometric number nu_+</label>
+                    <input type="number" id="activity-nu-cation" value="1" min="1" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="activity-nu-anion">Anion stoichiometric number nu_-</label>
+                    <input type="number" id="activity-nu-anion" value="1" min="1" step="1">
+                </div>
+            </div>
+
+            <div id="activity-ion-table-section" class="activity-ion-table-section" style="display: none;">
+                <div class="activity-ion-table-header">
+                    <h4>Ion table</h4>
+                    <button type="button" id="activity-add-ion" class="btn btn-secondary">Add ion</button>
+                </div>
+                <div class="calc-table-wrap">
+                    <table class="calc-data-table activity-ion-table">
+                        <thead>
+                            <tr>
+                                <th>Ion</th>
+                                <th>Molality m_i</th>
+                                <th>Charge z_i</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-ion-rows">
+                            <tr>
+                                <td><input type="text" class="activity-ion-name" value="Na+"></td>
+                                <td><input type="number" class="activity-ion-molality" value="0.01" step="any"></td>
+                                <td><input type="number" class="activity-ion-charge" value="1" step="any"></td>
+                                <td><button type="button" class="btn btn-secondary activity-remove-ion">Remove</button></td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" class="activity-ion-name" value="Cl-"></td>
+                                <td><input type="number" class="activity-ion-molality" value="0.01" step="any"></td>
+                                <td><input type="number" class="activity-ion-charge" value="-1" step="any"></td>
+                                <td><button type="button" class="btn btn-secondary activity-remove-ion">Remove</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button id="calculate-activity-coefficient" class="calculate-btn" type="button">Calculate</button>
+        `;
+
+        return createCalculatorLayout(
+            this.name,
+            this.description,
+            inputs,
+            "activity-coefficient-result",
+            true
+        );
+    },
+    attachEvents: function () {
+        const educationalBtn = document.getElementById("what-is-this-btn");
+        if (educationalBtn) {
+            educationalBtn.addEventListener("click", () => {
+                animateReveal(this.educationalHTML, document.getElementById("educational-content-container"));
+            });
+        }
+
+        const resultDiv = document.getElementById("activity-coefficient-result");
+        const form = document.querySelector(".calculator-form");
+        const modeSelect = document.getElementById("activity-mode");
+        const ionTableSection = document.getElementById("activity-ion-table-section");
+        const ionRows = document.getElementById("activity-ion-rows");
+        const addIonBtn = document.getElementById("activity-add-ion");
+        const calculateBtn = document.getElementById("calculate-activity-coefficient");
+
+        const setPlaceholder = () => {
+            resultDiv.innerHTML = '<span class="result-placeholder">Choose a mode and enter values to calculate.</span>';
+        };
+
+        const typesetResult = () => {
+            if (window.MathJax) {
+                window.MathJax.typesetPromise([resultDiv]).catch((error) => {
+                    console.error("MathJax typesetting failed:", error);
+                });
+            }
+        };
+
+        const precision = () => parseInt(document.getElementById("activity-precision").value, 10);
+
+        const formatNumber = (value) => {
+            if (!Number.isFinite(value)) return "";
+            if (value === 0) return "0";
+            return Number(value.toPrecision(precision())).toString();
+        };
+
+        const escapeHTML = (value) => String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+
+        const readNumber = (id, label, options = {}) => {
+            const input = document.getElementById(id);
+            const value = Number(input.value);
+            if (input.value.trim() === "" || !Number.isFinite(value)) {
+                throw new Error(`${label} must be a valid number`);
+            }
+            if (options.positive && value <= 0) {
+                throw new Error(`${label} must be greater than zero`);
+            }
+            if (options.nonNegative && value < 0) {
+                throw new Error(`${label} must be non-negative`);
+            }
+            if (options.betweenZeroAndOne && (value < 0 || value > 1)) {
+                throw new Error(`${label} must be between 0 and 1`);
+            }
+            if (options.positiveInteger && (!Number.isInteger(value) || value <= 0)) {
+                throw new Error(`${label} must be a positive integer`);
+            }
+
+            return value;
+        };
+
+        const getContextHTML = () => {
+            const scale = document.getElementById("activity-scale").value;
+            const temperature = document.getElementById("activity-temperature").value;
+            const solvent = document.getElementById("activity-solvent").value.trim() || "Custom solvent";
+            const standardState = document.getElementById("activity-standard-state").value;
+
+            return `
+                <div class="calc-note">
+                    Context: concentration scale = ${escapeHTML(scale)}; solvent = ${escapeHTML(solvent)}; temperature = ${escapeHTML(temperature || "not specified")} K; standard state = ${escapeHTML(standardState)}.
+                </div>
+            `;
+        };
+
+        const getIons = () => Array.from(ionRows.querySelectorAll("tr")).map((row, index) => {
+            const name = row.querySelector(".activity-ion-name").value.trim() || `Ion ${index + 1}`;
+            const molalityValue = row.querySelector(".activity-ion-molality").value;
+            const chargeValue = row.querySelector(".activity-ion-charge").value;
+            const molality = Number(molalityValue);
+            const charge = Number(chargeValue);
+
+            if (molalityValue.trim() === "" || !Number.isFinite(molality)) {
+                throw new Error(`${name} molality must be a valid number`);
+            }
+            if (chargeValue.trim() === "" || !Number.isFinite(charge)) {
+                throw new Error(`${name} charge must be a valid number`);
+            }
+
+            return { name, molality, charge };
+        });
+
+        const getIonicStrength = (sourceId, manualInputId) => {
+            if (document.getElementById(sourceId).value === "manual") {
+                return {
+                    ionicStrength: readNumber(manualInputId, "Ionic strength", { nonNegative: true }),
+                    chargeBalance: null,
+                    isElectricallyNeutral: true,
+                    source: "manual"
+                };
+            }
+
+            return {
+                ...calculateIonicStrength(getIons()),
+                source: "table"
+            };
+        };
+
+        const getGammaInterpretation = (gamma) => {
+            if (Math.abs(gamma - 1) < 1e-12) {
+                return "The coefficient is 1, so activity equals the concentration term on this scale.";
+            }
+            if (gamma < 1) {
+                return "The coefficient is below 1, so activity is lower than the concentration term.";
+            }
+            return "The coefficient is above 1, so activity is greater than the concentration term.";
+        };
+
+        const renderResult = ({ title, formula, rows, steps = [], warnings = [] }) => {
+            const stepHTML = document.getElementById("activity-show-steps").checked && steps.length > 0
+                ? `
+                    <div class="calc-section">
+                        <h4>Steps</h4>
+                        <ol>${steps.map((step) => `<li>${step}</li>`).join("")}</ol>
+                    </div>
+                `
+                : "";
+
+            const warningHTML = warnings.map((warning) => `<div class="calc-warning">${warning}</div>`).join("");
+
+            resultDiv.innerHTML = `
+                <div class="result-main">
+                    <h4>${title}</h4>
+                    ${formula ? `<div class="formula-block">${formula}</div>` : ""}
+                    <div class="calc-result-grid">
+                        ${rows.map((row) => `
+                            <div>
+                                <span>${row.label}</span>
+                                <strong>${row.value}</strong>
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+                ${getContextHTML()}
+                ${warningHTML}
+                ${stepHTML}
+            `;
+            typesetResult();
+        };
+
+        const calculate = () => {
+            try {
+                const mode = modeSelect.value;
+
+                if (mode === "activity") {
+                    const concentration = readNumber("activity-concentration", "Concentration term", { nonNegative: true });
+                    const gamma = readNumber("activity-gamma", "Activity coefficient", { positive: true });
+                    const activity = calculateActivityFromCoefficient(concentration, gamma);
+
+                    renderResult({
+                        title: "Activity from coefficient",
+                        formula: "\\[ a_i = \\gamma_i c_i \\]",
+                        rows: [
+                            { label: "Activity a_i", value: formatNumber(activity) },
+                            { label: "Interpretation", value: getGammaInterpretation(gamma) }
+                        ],
+                        steps: [`\\(a_i = ${formatNumber(gamma)} \\times ${formatNumber(concentration)} = ${formatNumber(activity)}\\)`]
+                    });
+                    return;
+                }
+
+                if (mode === "coefficient") {
+                    const activity = readNumber("activity-known-activity", "Activity", { nonNegative: true });
+                    const concentration = readNumber("activity-known-concentration", "Concentration term", { positive: true });
+                    const gamma = calculateActivityCoefficientFromActivity(activity, concentration);
+
+                    renderResult({
+                        title: "Activity coefficient from activity",
+                        formula: "\\[ \\gamma_i = \\frac{a_i}{c_i} \\]",
+                        rows: [
+                            { label: "Activity coefficient gamma_i", value: formatNumber(gamma) },
+                            { label: "Interpretation", value: getGammaInterpretation(gamma) }
+                        ],
+                        steps: [`\\(\\gamma_i = ${formatNumber(activity)} / ${formatNumber(concentration)} = ${formatNumber(gamma)}\\)`]
+                    });
+                    return;
+                }
+
+                if (mode === "molality") {
+                    const molality = readNumber("activity-molality", "Molality", { nonNegative: true });
+                    const gamma = readNumber("activity-molality-gamma", "Activity coefficient", { positive: true });
+                    const standardMolality = readNumber("activity-standard-molality", "Standard molality", { positive: true });
+                    const activity = calculateMolalityActivity(molality, gamma, standardMolality);
+
+                    renderResult({
+                        title: "Molality-based activity",
+                        formula: "\\[ a_i = \\frac{m_i\\gamma_i}{m^\\circ} \\]",
+                        rows: [
+                            { label: "Activity a_i", value: formatNumber(activity) },
+                            { label: "Interpretation", value: getGammaInterpretation(gamma) }
+                        ],
+                        steps: [`\\(a_i = (${formatNumber(molality)} \\times ${formatNumber(gamma)}) / ${formatNumber(standardMolality)} = ${formatNumber(activity)}\\)`]
+                    });
+                    return;
+                }
+
+                if (mode === "mole-fraction") {
+                    const moleFraction = readNumber("activity-mole-fraction", "Mole fraction", { betweenZeroAndOne: true });
+                    const coefficient = readNumber("activity-f-coefficient", "Mole-fraction coefficient", { positive: true });
+                    const activity = calculateMoleFractionActivity(moleFraction, coefficient);
+
+                    renderResult({
+                        title: "Mole-fraction activity",
+                        formula: "\\[ a_i = x_i f_i \\]",
+                        rows: [
+                            { label: "Activity a_i", value: formatNumber(activity) },
+                            { label: "Interpretation", value: getGammaInterpretation(coefficient) }
+                        ],
+                        steps: [`\\(a_i = ${formatNumber(moleFraction)} \\times ${formatNumber(coefficient)} = ${formatNumber(activity)}\\)`]
+                    });
+                    return;
+                }
+
+                if (mode === "ionic-strength") {
+                    const ionic = calculateIonicStrength(getIons());
+                    const warnings = ionic.isElectricallyNeutral
+                        ? []
+                        : [`Charge balance is ${formatNumber(ionic.chargeBalance)}. Electrolyte compositions are usually electrically neutral.`];
+
+                    renderResult({
+                        title: "Ionic strength",
+                        formula: "\\[ I = \\frac{1}{2}\\sum_i m_i z_i^2 \\]",
+                        rows: [
+                            { label: "Ionic strength I", value: formatNumber(ionic.ionicStrength) },
+                            { label: "Charge balance", value: formatNumber(ionic.chargeBalance) }
+                        ],
+                        warnings,
+                        steps: getIons().map((ion) => `${escapeHTML(ion.name)}: \\(m_i z_i^2 = ${formatNumber(ion.molality)} \\times ${formatNumber(ion.charge)}^2\\)`)
+                    });
+                    return;
+                }
+
+                if (mode === "debye") {
+                    const ionic = getIonicStrength("activity-dh-i-source", "activity-dh-ionic-strength");
+                    const charge = readNumber("activity-dh-charge", "Target ion charge");
+                    const constantA = readNumber("activity-dh-a", "Debye-Huckel constant A", { positive: true });
+                    const result = calculateDebyeHuckelLimiting(ionic.ionicStrength, charge, constantA);
+                    const warnings = ["Best for very dilute electrolyte solutions."];
+                    if (!ionic.isElectricallyNeutral) {
+                        warnings.push(`Charge balance is ${formatNumber(ionic.chargeBalance)}. Check the ion table.`);
+                    }
+                    if (ionic.ionicStrength > 0.01) {
+                        warnings.push("Ionic strength is above 0.01; the limiting law may be a poor approximation.");
+                    }
+
+                    renderResult({
+                        title: "Debye-Huckel limiting law",
+                        formula: "\\[ \\log_{10}\\gamma_i = -Az_i^2\\sqrt I \\]",
+                        rows: [
+                            { label: "log10 gamma_i", value: formatNumber(result.logGamma) },
+                            { label: "Activity coefficient gamma_i", value: formatNumber(result.gamma) },
+                            { label: "Ionic strength source", value: ionic.source }
+                        ],
+                        warnings,
+                        steps: [
+                            `\\(\\log_{10}\\gamma_i = -${formatNumber(constantA)}(${formatNumber(charge)})^2\\sqrt{${formatNumber(ionic.ionicStrength)}} = ${formatNumber(result.logGamma)}\\)`,
+                            `\\(\\gamma_i = 10^{${formatNumber(result.logGamma)}} = ${formatNumber(result.gamma)}\\)`
+                        ]
+                    });
+                    return;
+                }
+
+                if (mode === "extended-debye") {
+                    const ionic = getIonicStrength("activity-ext-i-source", "activity-ext-ionic-strength");
+                    const charge = readNumber("activity-ext-charge", "Target ion charge");
+                    const constantA = readNumber("activity-ext-a", "Debye-Huckel constant A", { positive: true });
+                    const constantB = readNumber("activity-ext-b", "Debye-Huckel constant B", { positive: true });
+                    const ionSize = readNumber("activity-ext-size", "Effective ion-size parameter", { positive: true });
+                    const result = calculateExtendedDebyeHuckel(ionic.ionicStrength, charge, constantA, constantB, ionSize);
+                    const warnings = ["The ion-size field is the effective ion-size parameter, not activity."];
+                    if (!ionic.isElectricallyNeutral) {
+                        warnings.push(`Charge balance is ${formatNumber(ionic.chargeBalance)}. Check the ion table.`);
+                    }
+                    if (ionic.ionicStrength > 0.1) {
+                        warnings.push("Ionic strength is above 0.1; extended Debye-Huckel may be outside its useful range.");
+                    }
+
+                    renderResult({
+                        title: "Extended Debye-Huckel",
+                        formula: "\\[ -\\log_{10}\\gamma_i = \\frac{Az_i^2\\sqrt I}{1 + Ba_i\\sqrt I} \\]",
+                        rows: [
+                            { label: "-log10 gamma_i", value: formatNumber(result.negativeLogGamma) },
+                            { label: "log10 gamma_i", value: formatNumber(result.logGamma) },
+                            { label: "Activity coefficient gamma_i", value: formatNumber(result.gamma) }
+                        ],
+                        warnings,
+                        steps: [
+                            `\\(-\\log_{10}\\gamma_i = ${formatNumber(result.negativeLogGamma)}\\)`,
+                            `\\(\\gamma_i = 10^{${formatNumber(result.logGamma)}} = ${formatNumber(result.gamma)}\\)`
+                        ]
+                    });
+                    return;
+                }
+
+                if (mode === "mean-ionic") {
+                    const gammaCation = readNumber("activity-gamma-cation", "Cation coefficient", { positive: true });
+                    const gammaAnion = readNumber("activity-gamma-anion", "Anion coefficient", { positive: true });
+                    const nuCation = readNumber("activity-nu-cation", "Cation stoichiometric number", { positiveInteger: true });
+                    const nuAnion = readNumber("activity-nu-anion", "Anion stoichiometric number", { positiveInteger: true });
+                    const meanGamma = calculateMeanIonicActivityCoefficient(gammaCation, gammaAnion, nuCation, nuAnion);
+
+                    renderResult({
+                        title: "Mean ionic activity coefficient",
+                        formula: "\\[ \\gamma_{\\pm} = \\left(\\gamma_+^{\\nu_+}\\gamma_-^{\\nu_-}\\right)^{\\frac{1}{\\nu_+ + \\nu_-}} \\]",
+                        rows: [
+                            { label: "Mean coefficient gamma_pm", value: formatNumber(meanGamma) },
+                            { label: "Electrolyte type", value: `${nuCation}:${nuAnion}` }
+                        ],
+                        steps: [`\\(\\gamma_{\\pm} = (${formatNumber(gammaCation)}^{${nuCation}} ${formatNumber(gammaAnion)}^{${nuAnion}})^{1/${nuCation + nuAnion}} = ${formatNumber(meanGamma)}\\)`]
+                    });
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="calc-error">${escapeHTML(error.message)}</span>`;
+            }
+        };
+
+        const updateModeVisibility = () => {
+            const mode = modeSelect.value;
+            document.querySelectorAll(".activity-mode-panel").forEach((panel) => {
+                panel.style.display = panel.dataset.mode === mode ? "grid" : "none";
+            });
+
+            const dhSource = document.getElementById("activity-dh-i-source").value;
+            const extSource = document.getElementById("activity-ext-i-source").value;
+            document.getElementById("activity-dh-manual-group").style.display = dhSource === "manual" ? "grid" : "none";
+            document.getElementById("activity-ext-manual-group").style.display = extSource === "manual" ? "grid" : "none";
+
+            const showIonTable =
+                mode === "ionic-strength" ||
+                (mode === "debye" && dhSource === "table") ||
+                (mode === "extended-debye" && extSource === "table");
+            ionTableSection.style.display = showIonTable ? "grid" : "none";
+        };
+
+        const addIonRow = () => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td><input type="text" class="activity-ion-name" placeholder="Ion"></td>
+                <td><input type="number" class="activity-ion-molality" placeholder="0.01" step="any"></td>
+                <td><input type="number" class="activity-ion-charge" placeholder="1" step="any"></td>
+                <td><button type="button" class="btn btn-secondary activity-remove-ion">Remove</button></td>
+            `;
+            ionRows.appendChild(row);
+        };
+
+        modeSelect.addEventListener("change", () => {
+            updateModeVisibility();
+            setPlaceholder();
+        });
+
+        form.addEventListener("change", (event) => {
+            if (event.target.id === "activity-dh-i-source" || event.target.id === "activity-ext-i-source") {
+                updateModeVisibility();
+                setPlaceholder();
+                return;
+            }
+
+            if (event.target !== modeSelect) {
+                calculate();
+            }
+        });
+
+        form.addEventListener("input", (event) => {
+            if (event.target !== modeSelect) {
+                calculate();
+            }
+        });
+
+        addIonBtn.addEventListener("click", () => {
+            addIonRow();
+            updateModeVisibility();
+        });
+
+        ionRows.addEventListener("click", (event) => {
+            if (!event.target.classList.contains("activity-remove-ion")) {
+                return;
+            }
+
+            event.target.closest("tr").remove();
+            calculate();
+        });
+
+        calculateBtn.addEventListener("click", calculate);
+        updateModeVisibility();
+        setPlaceholder();
+    }
+};
 
 export const chemistryCalculators = {
     icon: "icon-chemistry",
@@ -658,6 +1343,7 @@ export const chemistryCalculators = {
         });
     }
 },
+            activityCoefficientCalculator,
             {
                 id: "concentration-calculator",
                 name: "Concentration Calculator",
@@ -677,17 +1363,27 @@ export const chemistryCalculators = {
             \\[ \\text{mass of solution} = \\text{mass of solute} + \\text{mass of solvent} \\]
 
             <h4>3. Molarity concentration</h4>
-            <p>Molarity is moles of solute per liter of solution.</p>
-            \\[ M = \\frac{n}{V} \\]
-            <p>Rearrangements:</p>
-            \\[ n = M \\times V \\quad,\\quad V = \\frac{n}{M} \\]
+            <p>Molarity is the amount of solute divided by the volume of the complete solution.</p>
+            \\[ M = \\frac{n_{\\text{solute}}}{V_{\\text{solution}}} \\]
+            <p>When solute mass is known, moles can be found from molar mass before calculating molarity.</p>
+            \\[ n_{\\text{solute}} = \\frac{m_{\\text{solute}}}{M_r} \\]
+            <p>Mass concentration can also be converted to molarity when molar mass is known.</p>
+            \\[ M = \\frac{\\text{mass concentration}}{M_r} \\]
 
-            <h4>4. Solution dilution</h4>
+            <h4>4. Molality concentration</h4>
+            <p>Molality is the amount of solute divided by the mass of the solvent in kilograms.</p>
+            \\[ m = \\frac{n_{\\text{solute}}}{m_{\\text{solvent}}} \\]
+            <p>The denominator is solvent mass, not solution volume or total solution mass.</p>
+
+            <h4>5. Molarity vs. molality</h4>
+            <p>Molarity uses solution volume, so it can change when temperature or pressure changes the volume. Molality uses solvent mass, so it is independent of temperature and pressure for a fixed composition.</p>
+
+            <h4>6. Solution dilution</h4>
             <p>Dilution keeps solute moles constant, so concentration and volume follow:</p>
             \\[ M_1 V_1 = M_2 V_2 \\]
             <p>\\( V_2 \\) is the final total volume after dilution.</p>
 
-            <h4>5. Concentration from density</h4>
+            <h4>7. Concentration from density</h4>
             <p>When density and mass percent are known, molarity is:</p>
             \\[ M = \\frac{\\rho \\times \\text{w/w\\%} \\times 10}{M_r} \\]
             <p>Use density (\\( \\rho \\)) in g/mL, w/w% as a percent number (for example 37), and molar mass (\\( M_r \\)) in g/mol.</p>
@@ -723,6 +1419,19 @@ export const chemistryCalculators = {
 
                     const massOptions = createUnitOptions(massUnits, 'g');
                     const volumeOptions = createUnitOptions(volumeUnits, 'ml');
+                    const solutionVolumeOptions = createUnitOptions([
+                        { val: 'l', label: 'liters (L)' },
+                        { val: 'ml', label: 'milliliters (mL)' }
+                    ], 'l');
+                    const soluteMassOptions = createUnitOptions([
+                        { val: 'mg', label: 'milligrams (mg)' },
+                        { val: 'g', label: 'grams (g)' },
+                        { val: 'kg', label: 'kilograms (kg)' }
+                    ], 'g');
+                    const solventMassOptions = createUnitOptions([
+                        { val: 'kg', label: 'kilograms (kg)' },
+                        { val: 'g', label: 'grams (g)' }
+                    ], 'kg');
 
                     const createInputWithUnit = (idPrefix, label, options, placeholder = 'Enter value') => `
                 <div class="form-group">
@@ -752,7 +1461,7 @@ export const chemistryCalculators = {
                 <select id="conc-mode">
                     <option value="wv">Mass volume percent (w/v%)</option>
                     <option value="ww">Mass percent (w/w%)</option>
-                    <option value="molarity">Molarity concentration</option>
+                    <option value="molarity">Molarity / Molality</option>
                     <option value="dilution">Solution dilution</option>
                     <option value="density">Concentration from density</option>
                 </select>
@@ -771,9 +1480,58 @@ export const chemistryCalculators = {
             </div>
 
             <div id="conc-panel-molarity" class="conc-mode-panel" style="display: none;">
-                ${createScalarInput('conc-molar-moles', 'Moles of solute (mol)')}
-                ${createInputWithUnit('conc-molar-volume', 'Volume of solution', volumeOptions)}
-                ${createScalarInput('conc-molarity', 'Molarity concentration', 'mol/L')}
+                <div class="conc-switch" role="group" aria-label="Concentration type">
+                    <button type="button" class="conc-switch-btn active" data-conc-type="molarity" aria-pressed="true">Molarity</button>
+                    <button type="button" class="conc-switch-btn" data-conc-type="molality" aria-pressed="false">Molality</button>
+                </div>
+
+                <div id="conc-type-molarity" class="conc-type-panel">
+                    <div class="form-group">
+                        <label for="conc-molarity-method">Input method</label>
+                        <select id="conc-molarity-method">
+                            <option value="moles">Known moles of solute</option>
+                            <option value="mass">Known mass of solute and molar mass</option>
+                            <option value="concentration">Known mass concentration and molar mass</option>
+                        </select>
+                    </div>
+
+                    <div id="conc-molarity-method-moles" class="conc-method-panel">
+                        ${createScalarInput('conc-molar-direct-moles', 'Moles of solute', 'mol')}
+                        ${createInputWithUnit('conc-molar-direct-volume', 'Volume of solution', solutionVolumeOptions)}
+                    </div>
+
+                    <div id="conc-molarity-method-mass" class="conc-method-panel" style="display: none;">
+                        ${createInputWithUnit('conc-molar-mass-solute', 'Mass of solute', soluteMassOptions)}
+                        ${createScalarInput('conc-molar-mass-molar-mass', 'Molar mass of solute', 'g/mol')}
+                        ${createInputWithUnit('conc-molar-mass-volume', 'Volume of solution', solutionVolumeOptions)}
+                    </div>
+
+                    <div id="conc-molarity-method-concentration" class="conc-method-panel" style="display: none;">
+                        ${createScalarInput('conc-molar-concentration', 'Mass concentration', 'g/L')}
+                        ${createScalarInput('conc-molar-concentration-molar-mass', 'Molar mass of solute', 'g/mol')}
+                    </div>
+                </div>
+
+                <div id="conc-type-molality" class="conc-type-panel" style="display: none;">
+                    <div class="form-group">
+                        <label for="conc-molality-method">Input method</label>
+                        <select id="conc-molality-method">
+                            <option value="moles">Known moles of solute</option>
+                            <option value="mass">Known mass of solute and molar mass</option>
+                        </select>
+                    </div>
+
+                    <div id="conc-molality-method-moles" class="conc-method-panel">
+                        ${createScalarInput('conc-molal-direct-moles', 'Moles of solute', 'mol')}
+                        ${createInputWithUnit('conc-molal-direct-solvent', 'Mass of solvent', solventMassOptions)}
+                    </div>
+
+                    <div id="conc-molality-method-mass" class="conc-method-panel" style="display: none;">
+                        ${createInputWithUnit('conc-molal-mass-solute', 'Mass of solute', soluteMassOptions)}
+                        ${createScalarInput('conc-molal-mass-molar-mass', 'Molar mass of solute', 'g/mol')}
+                        ${createInputWithUnit('conc-molal-mass-solvent', 'Mass of solvent', solventMassOptions)}
+                    </div>
+                </div>
             </div>
 
             <div id="conc-panel-dilution" class="conc-mode-panel" style="display: none;">
@@ -813,6 +1571,7 @@ export const chemistryCalculators = {
 
                     const resultDiv = document.getElementById("concentration-result");
                     const modeSelect = document.getElementById("conc-mode");
+                    let activeConcentrationType = "molarity";
 
                     const panels = {
                         wv: document.getElementById("conc-panel-wv"),
@@ -822,10 +1581,27 @@ export const chemistryCalculators = {
                         density: document.getElementById("conc-panel-density")
                     };
 
+                    const concentrationTypeButtons = Array.from(document.querySelectorAll(".conc-switch-btn"));
+                    const concentrationTypePanels = {
+                        molarity: document.getElementById("conc-type-molarity"),
+                        molality: document.getElementById("conc-type-molality")
+                    };
+                    const molarityMethodSelect = document.getElementById("conc-molarity-method");
+                    const molalityMethodSelect = document.getElementById("conc-molality-method");
+                    const molarityMethodPanels = {
+                        moles: document.getElementById("conc-molarity-method-moles"),
+                        mass: document.getElementById("conc-molarity-method-mass"),
+                        concentration: document.getElementById("conc-molarity-method-concentration")
+                    };
+                    const molalityMethodPanels = {
+                        moles: document.getElementById("conc-molality-method-moles"),
+                        mass: document.getElementById("conc-molality-method-mass")
+                    };
+
                     const placeholders = {
                         wv: "Enter any two values to solve the third value for w/v%.",
                         ww: "Enter any two values to solve the third value for w/w%.",
-                        molarity: "Enter any two values to solve molarity, moles, or volume.",
+                        molarity: "Choose molarity or molality, then enter the required known values.",
                         dilution: "Enter any three values to solve the missing dilution variable.",
                         density: "Enter any three values to solve the fourth variable."
                     };
@@ -870,6 +1646,7 @@ export const chemistryCalculators = {
                     const fromMl = (value, unit) => value / volumeToMl[unit];
                     const toL = (value, unit) => toMl(value, unit) / 1000;
                     const fromL = (value, unit) => fromMl(value * 1000, unit);
+                    const toKg = (value, unit) => toGrams(value, unit) / 1000;
 
                     const getNumber = (input) => {
                         const parsed = parseFloat(input.value);
@@ -894,10 +1671,26 @@ export const chemistryCalculators = {
                             percent: document.getElementById("conc-ww-percent")
                         },
                         molarity: {
-                            moles: document.getElementById("conc-molar-moles"),
-                            volumeVal: document.getElementById("conc-molar-volume-val"),
-                            volumeUnit: document.getElementById("conc-molar-volume-unit"),
-                            molarity: document.getElementById("conc-molarity")
+                            directMoles: document.getElementById("conc-molar-direct-moles"),
+                            directVolumeVal: document.getElementById("conc-molar-direct-volume-val"),
+                            directVolumeUnit: document.getElementById("conc-molar-direct-volume-unit"),
+                            massSoluteVal: document.getElementById("conc-molar-mass-solute-val"),
+                            massSoluteUnit: document.getElementById("conc-molar-mass-solute-unit"),
+                            massMolarMass: document.getElementById("conc-molar-mass-molar-mass"),
+                            massVolumeVal: document.getElementById("conc-molar-mass-volume-val"),
+                            massVolumeUnit: document.getElementById("conc-molar-mass-volume-unit"),
+                            concentration: document.getElementById("conc-molar-concentration"),
+                            concentrationMolarMass: document.getElementById("conc-molar-concentration-molar-mass")
+                        },
+                        molality: {
+                            directMoles: document.getElementById("conc-molal-direct-moles"),
+                            directSolventVal: document.getElementById("conc-molal-direct-solvent-val"),
+                            directSolventUnit: document.getElementById("conc-molal-direct-solvent-unit"),
+                            massSoluteVal: document.getElementById("conc-molal-mass-solute-val"),
+                            massSoluteUnit: document.getElementById("conc-molal-mass-solute-unit"),
+                            massMolarMass: document.getElementById("conc-molal-mass-molar-mass"),
+                            massSolventVal: document.getElementById("conc-molal-mass-solvent-val"),
+                            massSolventUnit: document.getElementById("conc-molal-mass-solvent-unit")
                         },
                         dilution: {
                             m1: document.getElementById("conc-dilution-m1"),
@@ -1009,45 +1802,152 @@ export const chemistryCalculators = {
                         `;
                     };
 
-                    const updateMolarity = () => {
-                        const molesInput = getNumber(refs.molarity.moles);
-                        const volumeInput = getNumber(refs.molarity.volumeVal);
-                        const molarityInput = getNumber(refs.molarity.molarity);
+                    const updateMolarityConcentration = () => {
+                        const method = molarityMethodSelect.value;
+                        let moles = null;
+                        let liters = null;
+                        let formulaText = "M = moles / solution volume in L";
 
-                        let moles = molesInput;
-                        let liters = volumeInput === null ? null : toL(volumeInput, refs.molarity.volumeUnit.value);
-                        let molarity = molarityInput;
+                        if (method === "moles") {
+                            moles = getNumber(refs.molarity.directMoles);
+                            const volumeInput = getNumber(refs.molarity.directVolumeVal);
+                            if (moles === null || volumeInput === null) {
+                                setPlaceholder("molarity");
+                                return;
+                            }
+                            liters = toL(volumeInput, refs.molarity.directVolumeUnit.value);
+                        } else if (method === "mass") {
+                            const soluteMass = getNumber(refs.molarity.massSoluteVal);
+                            const molarMass = getNumber(refs.molarity.massMolarMass);
+                            const volumeInput = getNumber(refs.molarity.massVolumeVal);
+                            if (soluteMass === null || molarMass === null || volumeInput === null) {
+                                setPlaceholder("molarity");
+                                return;
+                            }
+                            const grams = toGrams(soluteMass, refs.molarity.massSoluteUnit.value);
+                            liters = toL(volumeInput, refs.molarity.massVolumeUnit.value);
 
-                        if (hasNegative([moles, liters, molarity])) {
+                            if (hasNegative([grams, molarMass, liters])) {
+                                resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                                return;
+                            }
+                            if (molarMass <= 0) {
+                                resultDiv.innerHTML = '<span style="color: #c0392b;">Molar mass must be greater than zero.</span>';
+                                return;
+                            }
+
+                            moles = grams / molarMass;
+                            formulaText = "M = (solute mass in g / molar mass) / solution volume in L";
+                        } else {
+                            const massConcentration = getNumber(refs.molarity.concentration);
+                            const molarMass = getNumber(refs.molarity.concentrationMolarMass);
+                            if (massConcentration === null || molarMass === null) {
+                                setPlaceholder("molarity");
+                                return;
+                            }
+                            if (hasNegative([massConcentration, molarMass])) {
+                                resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                                return;
+                            }
+                            if (molarMass <= 0) {
+                                resultDiv.innerHTML = '<span style="color: #c0392b;">Molar mass must be greater than zero.</span>';
+                                return;
+                            }
+
+                            const molarity = massConcentration / molarMass;
+                            resultDiv.innerHTML = `
+                                <div>Molarity: <strong>${formatNumber(molarity, 4)} mol/L</strong></div>
+                                <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                    Formula used: M = mass concentration in g/L / molar mass
+                                </div>
+                            `;
+                            return;
+                        }
+
+                        if (hasNegative([moles, liters])) {
                             resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
                             return;
                         }
-
-                        if (moles !== null && liters !== null && liters > 0) {
-                            molarity = moles / liters;
-                            setInputValue(refs.molarity.molarity, molarity, 6);
-                        } else if (molarity !== null && liters !== null) {
-                            moles = molarity * liters;
-                            setInputValue(refs.molarity.moles, moles, 6);
-                        } else if (molarity !== null && molarity > 0 && moles !== null) {
-                            liters = moles / molarity;
-                            setInputValue(refs.molarity.volumeVal, fromL(liters, refs.molarity.volumeUnit.value), 6);
-                        } else {
-                            setPlaceholder("molarity");
-                            return;
-                        }
-
-                        if (moles === null || liters === null || liters <= 0) {
-                            resultDiv.innerHTML = '<span style="color: #c0392b;">Provide valid moles and volume for molarity.</span>';
+                        if (liters <= 0) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Solution volume must be greater than zero.</span>';
                             return;
                         }
 
                         resultDiv.innerHTML = `
                             <div>Molarity: <strong>${formatNumber(moles / liters, 4)} mol/L</strong></div>
                             <div style="margin-top: 0.5rem; color: var(--text-secondary);">
-                                (${formatNumber(moles, 4)} mol in ${formatNumber(liters, 4)} L)
+                                Formula used: ${formulaText}
+                            </div>
+                            <div style="margin-top: 0.25rem; color: var(--text-secondary);">
+                                ${formatNumber(moles, 4)} mol in ${formatNumber(liters, 4)} L
                             </div>
                         `;
+                    };
+
+                    const updateMolality = () => {
+                        const method = molalityMethodSelect.value;
+                        let moles = null;
+                        let solventKg = null;
+                        let formulaText = "molality = moles / solvent mass in kg";
+
+                        if (method === "moles") {
+                            moles = getNumber(refs.molality.directMoles);
+                            const solventMass = getNumber(refs.molality.directSolventVal);
+                            if (moles === null || solventMass === null) {
+                                setPlaceholder("molarity");
+                                return;
+                            }
+                            solventKg = toKg(solventMass, refs.molality.directSolventUnit.value);
+                        } else {
+                            const soluteMass = getNumber(refs.molality.massSoluteVal);
+                            const molarMass = getNumber(refs.molality.massMolarMass);
+                            const solventMass = getNumber(refs.molality.massSolventVal);
+                            if (soluteMass === null || molarMass === null || solventMass === null) {
+                                setPlaceholder("molarity");
+                                return;
+                            }
+                            const grams = toGrams(soluteMass, refs.molality.massSoluteUnit.value);
+                            solventKg = toKg(solventMass, refs.molality.massSolventUnit.value);
+
+                            if (hasNegative([grams, molarMass, solventKg])) {
+                                resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                                return;
+                            }
+                            if (molarMass <= 0) {
+                                resultDiv.innerHTML = '<span style="color: #c0392b;">Molar mass must be greater than zero.</span>';
+                                return;
+                            }
+
+                            moles = grams / molarMass;
+                            formulaText = "molality = (solute mass in g / molar mass) / solvent mass in kg";
+                        }
+
+                        if (hasNegative([moles, solventKg])) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Values must be non-negative.</span>';
+                            return;
+                        }
+                        if (solventKg <= 0) {
+                            resultDiv.innerHTML = '<span style="color: #c0392b;">Mass of solvent must be greater than zero.</span>';
+                            return;
+                        }
+
+                        resultDiv.innerHTML = `
+                            <div>Molality: <strong>${formatNumber(moles / solventKg, 4)} mol/kg</strong></div>
+                            <div style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                Formula used: ${formulaText}
+                            </div>
+                            <div style="margin-top: 0.25rem; color: var(--text-secondary);">
+                                ${formatNumber(moles, 4)} mol per ${formatNumber(solventKg, 4)} kg solvent
+                            </div>
+                        `;
+                    };
+
+                    const updateMolarity = () => {
+                        if (activeConcentrationType === "molality") {
+                            updateMolality();
+                        } else {
+                            updateMolarityConcentration();
+                        }
                     };
 
                     const updateDilution = () => {
@@ -1195,11 +2095,39 @@ export const chemistryCalculators = {
                         else if (mode === "density") updateDensity();
                     };
 
+                    const showMolarityMethod = () => {
+                        const method = molarityMethodSelect.value;
+                        Object.entries(molarityMethodPanels).forEach(([key, panel]) => {
+                            panel.style.display = key === method ? "block" : "none";
+                        });
+                    };
+
+                    const showMolalityMethod = () => {
+                        const method = molalityMethodSelect.value;
+                        Object.entries(molalityMethodPanels).forEach(([key, panel]) => {
+                            panel.style.display = key === method ? "block" : "none";
+                        });
+                    };
+
+                    const showConcentrationType = () => {
+                        concentrationTypeButtons.forEach(button => {
+                            const isActive = button.dataset.concType === activeConcentrationType;
+                            button.classList.toggle("active", isActive);
+                            button.setAttribute("aria-pressed", String(isActive));
+                        });
+                        Object.entries(concentrationTypePanels).forEach(([key, panel]) => {
+                            panel.style.display = key === activeConcentrationType ? "block" : "none";
+                        });
+                    };
+
                     const showActivePanel = () => {
                         const mode = modeSelect.value;
                         Object.entries(panels).forEach(([key, panel]) => {
                             panel.style.display = key === mode ? "block" : "none";
                         });
+                        showConcentrationType();
+                        showMolarityMethod();
+                        showMolalityMethod();
                         setPlaceholder(mode);
                         updateActiveMode();
                     };
@@ -1207,7 +2135,11 @@ export const chemistryCalculators = {
                     const valueInputIds = [
                         "conc-wv-mass-val", "conc-wv-volume-val", "conc-wv-percent",
                         "conc-ww-solute-val", "conc-ww-solution-val", "conc-ww-percent",
-                        "conc-molar-moles", "conc-molar-volume-val", "conc-molarity",
+                        "conc-molar-direct-moles", "conc-molar-direct-volume-val",
+                        "conc-molar-mass-solute-val", "conc-molar-mass-molar-mass", "conc-molar-mass-volume-val",
+                        "conc-molar-concentration", "conc-molar-concentration-molar-mass",
+                        "conc-molal-direct-moles", "conc-molal-direct-solvent-val",
+                        "conc-molal-mass-solute-val", "conc-molal-mass-molar-mass", "conc-molal-mass-solvent-val",
                         "conc-dilution-m1", "conc-dilution-v1-val", "conc-dilution-m2", "conc-dilution-v2-val",
                         "conc-density", "conc-density-ww", "conc-density-mm", "conc-density-molarity"
                     ];
@@ -1225,7 +2157,12 @@ export const chemistryCalculators = {
                         { valueId: "conc-wv-volume-val", unitId: "conc-wv-volume-unit", kind: "volume" },
                         { valueId: "conc-ww-solute-val", unitId: "conc-ww-solute-unit", kind: "mass" },
                         { valueId: "conc-ww-solution-val", unitId: "conc-ww-solution-unit", kind: "mass" },
-                        { valueId: "conc-molar-volume-val", unitId: "conc-molar-volume-unit", kind: "volume" },
+                        { valueId: "conc-molar-direct-volume-val", unitId: "conc-molar-direct-volume-unit", kind: "volume" },
+                        { valueId: "conc-molar-mass-solute-val", unitId: "conc-molar-mass-solute-unit", kind: "mass" },
+                        { valueId: "conc-molar-mass-volume-val", unitId: "conc-molar-mass-volume-unit", kind: "volume" },
+                        { valueId: "conc-molal-direct-solvent-val", unitId: "conc-molal-direct-solvent-unit", kind: "mass" },
+                        { valueId: "conc-molal-mass-solute-val", unitId: "conc-molal-mass-solute-unit", kind: "mass" },
+                        { valueId: "conc-molal-mass-solvent-val", unitId: "conc-molal-mass-solvent-unit", kind: "mass" },
                         { valueId: "conc-dilution-v1-val", unitId: "conc-dilution-v1-unit", kind: "volume" },
                         { valueId: "conc-dilution-v2-val", unitId: "conc-dilution-v2-unit", kind: "volume" }
                     ];
@@ -1255,6 +2192,27 @@ export const chemistryCalculators = {
                         });
                     });
 
+                    concentrationTypeButtons.forEach(button => {
+                        button.addEventListener("click", () => {
+                            activeConcentrationType = button.dataset.concType;
+                            showConcentrationType();
+                            setPlaceholder("molarity");
+                            updateActiveMode();
+                        });
+                    });
+
+                    molarityMethodSelect.addEventListener("change", () => {
+                        showMolarityMethod();
+                        setPlaceholder("molarity");
+                        updateActiveMode();
+                    });
+
+                    molalityMethodSelect.addEventListener("change", () => {
+                        showMolalityMethod();
+                        setPlaceholder("molarity");
+                        updateActiveMode();
+                    });
+
                     modeSelect.addEventListener("change", showActivePanel);
 
                     const clearBtn = document.getElementById("conc-clear");
@@ -1262,6 +2220,9 @@ export const chemistryCalculators = {
                         valueInputIds.forEach(id => {
                             document.getElementById(id).value = "";
                         });
+                        activeConcentrationType = "molarity";
+                        molarityMethodSelect.value = "moles";
+                        molalityMethodSelect.value = "moles";
                         modeSelect.value = "wv";
                         showActivePanel();
                     });
@@ -1514,8 +2475,8 @@ export const chemistryCalculators = {
 
             <p>To use this tool, enter the mass of the solute and solvent (or the total mixture mass). Alternatively, input the chemical formula to find the percent composition by element.</p>
 
-            <div style="background-color: #f0f7ff; color: #1a1a1a; padding: 10px; border-left: 5px solid #3498db; margin: 10px 0;">
-                💡 Note: The mass percentage of a solution is independent of temperature.
+            <div class="educational-note">
+                ${createIconLabel("icon-note", "Note: The mass percentage of a solution is independent of temperature.", "educational-note-label")}
             </div>
 
             <h3>Understanding Mass Percent</h3>
